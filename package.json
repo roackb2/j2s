@@ -1,0 +1,32 @@
+{
+  "name": "j2s",
+  "version": "1.0.0",
+  "description": "JSON to SQL, build RESTful API server that accespts JSON describing SQL query statements, support (almost) full SQL functionality",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roackb2/j2s.git"
+  },
+  "keywords": [
+    "JSON",
+    "SQL",
+    "RESTful",
+    "API",
+    "koa",
+    "koa.js"
+  ],
+  "author": "Jay Liang <roackb2@gmail.com> (https://www.facebook.com/profile.php?id=1391931108)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/roackb2/j2s/issues"
+  },
+  "homepage": "https://github.com/roackb2/j2s#readme",
+  "dependencies": {
+    "koa-router": "^5.4.0",
+    "lodash": "^4.16.1",
+    "winston": "^2.2.0"
+  }
+}
