@@ -36,7 +36,7 @@ Supported JSON for a query will looks like:
             "user.photo_id": "photo.id"
         }
     },
-    "populate": ["photo", "devices"],
+    "populate": ["photo"],
     "select": ["user.id as user_id", "user.username", "photo.url as photo_url"],
     "limit": 10,
     "offset": 1,
@@ -375,7 +375,7 @@ see [Advanced Examples](#advanced-examples)
             "user.photo_id": "photo.id"
         }
     },
-    "populate": ["photo", "starredRecipes", "devices"],
+    "populate": ["photo"],
     "select": ["user.id as user_id", "user.username", "photo.url as photo_url"],
     "limit": 10,
     "offset": 1,
