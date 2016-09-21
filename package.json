@@ -1,12 +1,10 @@
 {
     "name": "j2s",
-    "version": "1.0.3",
+    "version": "1.0.5",
     "description": "JSON to SQL, build RESTful API server that accespts JSON describing SQL query statements, support (almost) full SQL functionality",
     "main": "index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "compile": "babel src -d lib",
-        "prepublish": "npm run compile"
+        "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
         "type": "git",
@@ -27,16 +25,10 @@
     },
     "homepage": "https://github.com/roackb2/j2s#readme",
     "dependencies": {
-        "babel-plugin-transform-async-to-generator": "^6.8.0",
         "bookshelf": "^0.10.1",
         "knex": "^0.12.1",
         "koa-router": "^5.4.0",
         "lodash": "^4.16.1",
         "winston": "^2.2.0"
-    },
-    "babel": {
-        "plugins": [
-            "transform-async-to-generator"
-        ]
     }
 }
