@@ -13,7 +13,7 @@ url routes to models according to user configured options, and provides RESTful 
 for these routes. Note that Bookshelf relies on [knex.js](http://knexjs.org/) for query building,
 you'll need that dependency as well.
 
-j2s are currently tested to be used by [koa.js](http://koajs.com/) and works fine.
+j2s are currently tested to work with [koa.js](http://koajs.com/) and works fine.
 
 Supported JSON for a query will looks like:
 ```json
@@ -23,7 +23,6 @@ Supported JSON for a query will looks like:
         "user.id__lt": 10,
         "user.id__between": [1, 10],
         "user.id__not_between": [11, 13],
-        "fb_token__null": true,
         "username__ne": "yo",
         "username__in": ["test1", "test2", "test4", "test6"],
         "or": {
@@ -109,7 +108,7 @@ module.exports = {
 
 ### Basic Examples
 
-> NOTE: examples below only show fake model attributes merely for demonstration purpose, the actual attributes depends how you define your tables, either by manually creating tables or using knex migrations. Also, you could use Bookshelf triggers to hash password, examples here show plain text for simplicity.
+> NOTE: examples below only show fake data with fake model attributes merely for demonstration purpose, the actual attributes depends how you define your tables, either by manually creating tables or using knex migrations. Also, you could use Bookshelf triggers to hash password, examples here show plain text for simplicity.
 
 * `GET hostname/api/users?query={"where":{"id":1}}`
 
@@ -150,7 +149,7 @@ module.exports = {
 
 * `GET hostname/api/users?query={"where":{"id__lt": "3", "username__ne": "test"}, "populate": ["photo"]}`
 
-    To get users where id less than 3 and username not equal to "test", and populate the 'photo_id' and 'locale_id' foreign key with the related object.
+    To get users where id less than 3 and username not equal to "test", and populate the 'photo_id' foreign key with the related object.
 
     The result would be something like:
 
@@ -290,32 +289,32 @@ The `query` section for a request supports almost all the operations allowed in 
 
 Available top level keys are:
 
-1. `where`: specifies query conditions
+1. `where`: specifies query conditions,
     value example:
     ```json
     {"username": "hello"}
     ```
-2. `select`: specifies which columns to select
+2. `select`: specifies which columns to select,
     value example:
     ```json
     ["id AS user_id", "username"]
     ```
-3. `order_by`: order the results by a columns, desc, or asc
+3. `order_by`: order the results by a columns, desc, or asc,
     value example:
     ```json
     ["id", "desc"]
     ```
-4. `limit`: limit the query result to certain number
+4. `limit`: limit the query result to certain number,
     value example:
     ```json
     10
     ```
-5. `offset`: skip query result to certain number
+5. `offset`: skip query result to certain number,
     value example:
     ```json
     10
     ```
-6. `populate`: populates any foreign constraint relations with the values in the foreign table, you must define relations using Bookshelf on your own, like the `photos` function of `User` model in examples above.
+6. `populate`: populates any foreign constraint relations with the values in the foreign table, you must define relations using Bookshelf on your own, like the `photo` function of `User` model in examples above.
     value example:
     ```json
     ["photo"]
@@ -350,7 +349,7 @@ Available suffixes includes:
 8. `in`: in a list of values
 9. `not_in`: not in a list of values
 10. `null`: set to true to find records with null values on that column, or false to find  not null ones.
-11. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ANDed together, and these condtioins are ORed with conditions with same level as the `or` keyword.
+11. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ANDed together, and these conditions are ORed with conditions with same level as the `or` keyword.
 see [Advanced Examples](#advanced-examples)
 
 ### Advanced Examples
@@ -362,7 +361,6 @@ see [Advanced Examples](#advanced-examples)
         "user.id__lt": 10,
         "user.id__between": [1, 10],
         "user.id__not_between": [11, 13],
-        "fb_token__null": true,
         "username__ne": "yo",
         "username__in": ["test1", "test2", "test4", "test6"],
         "or": {
