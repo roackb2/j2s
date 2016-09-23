@@ -172,8 +172,13 @@ a route with access control looks like following:
 ```
 
 You could omit any of the C, R, U, D, keys and they would behave as how you specified in `defaultAccess` option.
-The strategy could be either `J2S.ALLOW`, `J2S.DENY`, which will allow or deny all access to the resource,
-or a callback function that returns a Promise that later resolves to true or false. This is especially useful to design access control rules that relies on model relations, like a user should only update books he/she wrote, comment he/she created.
+
+
+The strategy could be as following:
+* `J2S.ALLOW`: Allow all access to the resource.
+* `J2S.DENY`: Deny all access to the resource,
+* `{identity_attr: 'target_attr'}`: Allow access when the `identity_attr` equals to `target_attr`, where `identity_attr` is an attribute on the model returned by the `identity` callback (normally an column in user table), and `target_attr` is an attribute on the resource the user wants to access. Useful for one-to-one and one-to-many relations.
+* A callback function: You could use a function that returns a Promise that later resolves to true or false as the strategy. This is especially useful to design access control rules that relies on many-to-many relations.
 
 If you don't want access control at all, you could set your routes as:
 
