@@ -1,6 +1,6 @@
 # j2s
 
-JSON to SQL, build RESTful API server that accepts JSON describing SQL query statements, and do CRUD accordingly.
+JSON to SQL, build RESTful API server that accepts JSON describing SQL query statements, and do CRUD accordingly, with configurable access control.
 
 * Tired of creating API every time that front-end requires new feature?
 * Your front-end development always are lagged due to backend API not yet ready?
@@ -45,30 +45,10 @@ Supported JSON for a query will looks like:
 
 # Usage
 
-
-```javascript
-// app.js
-const j2s = require('j2s')({
-    prefix: '/api',
-    routes: require('./routes')
-})
-
-const Koa = require('koa');
-const app = new Koa();
-
-app.use(j2s.routes());
-app.use(j2s.allowedMethods());
-```
-
-```javascript
-// routes.js
-const orm = require('./model');
-
-module.exports =  {
-    '/users': orm.User,
-    '/photos': orm.Photo,
-}
-```
+Following shows an working example with proper environments
+and how you could setup j2s routes with access control,
+we assume that User has an one-to-many relation with Photo,
+and User has an many-to-many relation to Book.
 
 ```javascript
 // model.js
@@ -82,6 +62,7 @@ const knex = require('knex')({
         charset: 'utf8'
     }
 });
+
 const bookshelf = require('bookshelf')(knex);
 
 const User = bookshelf.Model.extend({
@@ -91,6 +72,10 @@ const User = bookshelf.Model.extend({
     photo: function() {
         return this.belongsTo(Photo, 'photo_id');
     },
+
+    books: function() {
+        return this.belongsToMany(Book)
+    }
 })
 
 const Photo = bookshelf.Model.extend({
@@ -98,15 +83,108 @@ const Photo = bookshelf.Model.extend({
     hasTimestamps: true,
 })
 
+const Book = bookshelf.Model.extend({
+    tableName: 'book',
+    hasTimestamps: true,
+
+    authors: function() {
+        return this.belongsToMany(User)
+    }
+})
+
 module.exports = {
     User: User,
     Photo: Photo,
+    Book: Book
+}
+```
+
+```javascript
+// routes.js
+const J2S = require('j2s');
+const orm = require('./model');
+
+module.exports =  {
+    '/users': orm.User, // access control obeys 'defaultAccess'
+    '/photos': {
+        model: orm.Photo,
+        C: J2S.ALLOW,
+        R: {photo_id: id} // allow reads only when user.photo_id = photo.id
+        // let updates and deletion obey 'defaultAccess'
+    },
+    '/books': {
+        model: orm.Book,
+        // allow updates on books only when the book is written by the request user
+        U: (identity, instance) => {
+            // here, 'identity' represents the request User, 'instance' represents a queried Book
+            return identity.books().fetch().then(function(books) {
+                return books.some(function(book) {
+                    return book.id == instance.id
+                })
+            })
+        }
+    },
 }
 ```
 
 
+```javascript
+// app.js
+const orm = require('./model');
+const J2S = require('j2s')
+const j2s = new J2S({
+    prefix: '/api',
+    routes: require('./routes'),
+    defaultAccess: {
+        C: J2S.ALLOW,
+        R: J2S.DENY,
+        U: J2S.DENY,
+        D: J2S.DENY
+    }, // optional
+    identity: function (request) {
+        // should return an Promise that resolves to a Bookshelf.js model instance
+        return orm.User.where({id: request.header.user_id}).fetch();
+    } // optional, don't set this to ignore access control, defaults to allow all
+})
 
-### Basic Examples
+const Koa = require('koa');
+const app = new Koa();
+
+app.use(j2s.routes());
+app.use(j2s.allowedMethods());
+```
+
+### Access control
+
+Configurations in routes allows you to determine whether a user could do CRUD on the resource.
+a route with access control looks like following:
+
+```javascript
+{
+    'path': {
+        model: SomeBookshelfModel,
+        C: strategy,
+        R: strategy,
+        U: strategy,
+        D: strategy,
+    }
+}
+```
+
+You could omit any of the C, R, U, D, keys and they would behave as how you specified in `defaultAccess` option.
+The strategy could be either `J2S.ALLOW`, `J2S.DENY`, which will allow or deny all access to the resource,
+or a callback function that returns a Promise that later resolves to true or false. This is especially useful to design access control rules that relies on model relations, like a user should only update books he/she wrote, comment he/she created.
+
+If you don't want access control at all, you could set your routes as:
+
+```javascript
+{
+    'path': SomeBookshelfModel
+}
+```
+
+
+### Basic Query Examples
 
 > NOTE: examples below only show fake data with fake model attributes merely for demonstration purpose, the actual attributes depends how you define your tables, either by manually creating tables or using knex migrations. Also, you could use Bookshelf triggers to hash password, examples here show plain text for simplicity.
 

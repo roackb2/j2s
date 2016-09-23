@@ -2,15 +2,46 @@ const _ = require('lodash');
 const core = require('./core')
 const router = require('koa-router');
 
-module.exports = function(opts) {
+const accessProps = ['C', 'R', 'U', 'D']
+
+function J2S(opts) {
     opts = opts || {}
     const prefix = opts.prefix || ''
+    const defaultAccess = opts.defaultAccess || {
+        C: core.ALLOW,
+        R: core.ALLOW,
+        U: core.ALLOW,
+        D: core.ALLOW,
+    }
     const routes = opts.routes
+    const identityCB = opts.identity
     const controller = router()
-    _.forEach(routes, function(model, path) {
+    _.forEach(routes, function(item, path) {
+        let model = item
+        let rules = defaultAccess
+        if (_.isPlainObject(item)) {
+            model = item.model
+            _.each(accessProps, prop => {
+                if (!_.has(item, prop)) {
+                    item[prop] = defaultAccess[prop]
+                }
+            })
+            rules = _.pick(item, accessProps)
+        }
         path = prefix + path
         controller.get(path + '/:id', function*(next) {
-            let instance = yield model.where('id', this.params.id).fetch() || {}
+            let instances = yield model.where('id', this.params.id).fetchAll() || []
+            if (identityCB) {
+                let identity = yield identityCB(this)
+                let check = yield core.check(identity, instances, rules.R)
+                if (!check) {
+                    throw new Error('operation not authorized')
+                }
+            }
+            let instance = {}
+            if (instances.length > 0) {
+                instance = instances[0]
+            }
             this.body = {data: instance}
         })
         .get(path, function*(next) {
@@ -29,6 +60,13 @@ module.exports = function(opts) {
             } else {
                 instances = yield core.query(model, query).fetchAll()
             }
+            if (identityCB) {
+                let identity = yield identityCB(this)
+                let check = yield core.check(identity, instances, rules.R)
+                if (!check) {
+                    throw new Error('operation not authorized')
+                }
+            }
             this.body = {data: instances}
         })
         .post(path, function*(next) {
@@ -42,6 +80,13 @@ module.exports = function(opts) {
                 res = yield model.forge(item).save()
                 instances.push(res)
             }
+            if (identityCB) {
+                let identity = yield identityCB(this)
+                let check = yield core.check(identity, instances, rules.C)
+                if (!check) {
+                    throw new Error('operation not authorized')
+                }
+            }
             this.body = {data: instances}
         })
         .put(path, function*(next) {
@@ -53,8 +98,15 @@ module.exports = function(opts) {
             if (!_.isPlainObject(data)) {
                 throw new Error('value of `data` must be JSON object')
             }
-            res = yield core.query(model, query).save(data, options={method: "update"})
-            res = res.toJSON()
+            instances = yield core.query(model, query)
+            if (identityCB) {
+                let identity = yield identityCB(this)
+                let check = yield core.check(identity, instances, rules.U)
+                if (!check) {
+                    throw new Error('operation not authorized')
+                }
+            }
+            res = instances.save(data, options={method: "update"}).toJSON()
             this.body = {data: res}
         })
         .delete(path, function*(next) {
@@ -62,10 +114,22 @@ module.exports = function(opts) {
             if (!_.isPlainObject(query)) {
                 throw new Error('value of `query` must be JSON object')
             }
-            res = yield core.query(model, query).destroy()
-            res = res.toJSON()
+            instances = yield core.query(model, query)
+            if (identityCB) {
+                let identity = yield identityCB(this)
+                let check = yield core.check(identity, instances, rules.D)
+                if (!check) {
+                    throw new Error('operation not authorized')
+                }
+            }
+            res = instances.destroy().toJSON()
             this.body = {data: res}
         })
     })
     return controller;
 }
+
+J2S.ALLOW = core.ALLOW
+J2S.DENY = core.DENY
+
+module.exports = J2S

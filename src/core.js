@@ -1,6 +1,10 @@
 const _ = require('lodash');
 const util = require('util');
 const logger = require('./logging');
+const Promise = require('bluebird');
+
+const ALLOW = 'allow';
+const DENY = 'deny';
 
 const whereSuffixes = {
     'gt': (builder, col, value) => {
@@ -161,4 +165,38 @@ function query(model, clauses) {
 }
 
 
-module.exports.query = query
+const GeneratorFunction = (function*(){}).constructor;
+
+function check(identity, instances, rule) {
+    if (rule == DENY) {
+        return Promise.resolve(false);
+    }
+    if (rule == ALLOW) {
+        return Promise.resolve(true);
+    }
+    if (!_.isArray(instances)) {
+        instances = instances.toArray()
+    }
+    for (var i = 0; i < instances.length; i++) {
+        let instance = instances[i];
+        if (_.isPlainObject(rule)) {
+            for (var key in rule) {
+                if (identity[key] != instance[rule[key]]) {
+                    return Promise.resolve(false);
+                }
+            }
+        } else if (_.isFunction(rule)) {
+            return rule(identity, instance);
+        } else {
+            throw new Error(util.format('unknown rule type: %s', rule));
+        }
+    }
+    return Promise.resolve(true);
+}
+
+module.exports = {
+    query: query,
+    check: check,
+    ALLOW: ALLOW,
+    DENY: DENY
+}
