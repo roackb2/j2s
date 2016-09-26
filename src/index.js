@@ -1,6 +1,8 @@
 const _ = require('lodash');
 const core = require('./core')
 const router = require('koa-router');
+const bookshelf = require('bookshelf');
+const Promise = require('bluebird');
 
 const accessProps = ['C', 'R', 'U', 'D']
 
@@ -74,12 +76,10 @@ function J2S(opts) {
             if (!_.isArray(data)) {
                 data = [data]
             }
-            instances = []
-            for (var i = 0; i < data.length; i++) {
-                item = data[i]
-                res = yield model.forge(item).save()
-                instances.push(res)
-            }
+            let modelCollection = bookshelf.Collection.extend({
+                model: model
+            })
+            instances = modelCollection.forge(data)
             if (identityCB) {
                 let identity = yield identityCB(this)
                 let check = yield core.check(identity, instances, rules.C)
@@ -87,7 +87,8 @@ function J2S(opts) {
                     throw new Error('operation not authorized')
                 }
             }
-            this.body = {data: instances}
+            res = yield Promise.all(instances.invoke('save'))
+            this.body = {data: res}
         })
         .put(path, function*(next) {
             query = this.request.body.query

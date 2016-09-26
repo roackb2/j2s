@@ -164,9 +164,6 @@ function query(model, clauses) {
     return m
 }
 
-
-const GeneratorFunction = (function*(){}).constructor;
-
 function check(identity, instances, rule) {
     if (rule == DENY) {
         return Promise.resolve(false);
