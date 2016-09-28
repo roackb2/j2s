@@ -1,7 +1,6 @@
 const _ = require('lodash');
 const core = require('./core')
 const router = require('koa-router');
-const bookshelf = require('bookshelf');
 const Promise = require('bluebird');
 
 const accessProps = ['C', 'R', 'U', 'D']
@@ -15,9 +14,10 @@ function J2S(opts) {
         U: core.ALLOW,
         D: core.ALLOW,
     }
-    const routes = opts.routes
-    const identityCB = opts.identity
-    const controller = router()
+    const routes = opts.routes;
+    const bookshelf = opts.bookshelf;
+    const identityCB = opts.identity;
+    const controller = router();
     _.forEach(routes, function(item, path) {
         let model = item
         let rules = defaultAccess
@@ -87,7 +87,7 @@ function J2S(opts) {
                     throw new Error('operation not authorized')
                 }
             }
-            res = yield Promise.all(instances.invoke('save'))
+            res = yield Promise.all(instances.invokeThen('save'))
             this.body = {data: res}
         })
         .put(path, function*(next) {

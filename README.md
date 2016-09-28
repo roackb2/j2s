@@ -93,6 +93,7 @@ const Book = bookshelf.Model.extend({
 })
 
 module.exports = {
+    bookshelf: bookshelf,
     User: User,
     Photo: Photo,
     Book: Book
@@ -133,8 +134,9 @@ module.exports =  {
 const orm = require('./model');
 const J2S = require('j2s')
 const j2s = new J2S({
-    prefix: '/api',
-    routes: require('./routes'),
+    prefix: '/api', // optional
+    routes: require('./routes'), // necessary
+    bookshelf: orm.bookshelf // necessary
     defaultAccess: {
         C: J2S.ALLOW,
         R: J2S.DENY,
