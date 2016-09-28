@@ -40,9 +40,9 @@ function J2S(opts) {
                     throw new Error('operation not authorized')
                 }
             }
-            let instance = {}
-            if (instances.length > 0) {
-                instance = instances[0]
+            let instance = instances.toJSON()
+            if (instance.length > 0) {
+                instance = instance[0]
             }
             this.body = {data: instance}
         })
