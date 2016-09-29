@@ -48,7 +48,8 @@ Supported JSON for a query will looks like:
 Following shows an working example with proper environments
 and how you could setup j2s routes with access control,
 we assume that User has an one-to-many relation with Photo,
-and User has an many-to-many relation to Book.
+User has an many-to-many relation to Book, and User may have zero or one Account,
+the Account model determines whether a user is administrator in its `is_admin` column.
 
 ```javascript
 // model.js
@@ -69,12 +70,24 @@ const User = bookshelf.Model.extend({
     tableName: 'user',
     hasTimestamps: true,
 
+    account: function() {
+        return this.hasOne(Account);
+    }
+
     photo: function() {
-        return this.belongsTo(Photo, 'photo_id');
+        return this.belongsTo(Photo);
     },
 
     books: function() {
         return this.belongsToMany(Book)
+    }
+})
+
+const Account = bookshelf.Model.extend({
+    tableName: 'account',
+
+    user: function() {
+        return this.belongsTo(User);
     }
 })
 
@@ -96,7 +109,8 @@ module.exports = {
     bookshelf: bookshelf,
     User: User,
     Photo: Photo,
-    Book: Book
+    Book: Book,
+    Account: Account
 }
 ```
 
@@ -125,6 +139,7 @@ module.exports =  {
             })
         }
     },
+    // do not expose the Account model to users
 }
 ```
 
@@ -134,19 +149,25 @@ module.exports =  {
 const orm = require('./model');
 const J2S = require('j2s')
 const j2s = new J2S({
-    prefix: '/api', // optional
-    routes: require('./routes'), // necessary
-    bookshelf: orm.bookshelf // necessary
+    prefix: '/api',                 // optional
+    routes: require('./routes'),    // necessary
+    bookshelf: orm.bookshelf        // necessary
     defaultAccess: {
         C: J2S.ALLOW,
         R: J2S.DENY,
         U: J2S.DENY,
         D: J2S.DENY
-    }, // optional
+    },                              // optional
     identity: function (request) {
-        // should return an Promise that resolves to a Bookshelf.js model instance
+        // should return a Promise that resolves to a Bookshelf.js model instance
         return orm.User.where({id: request.header.user_id}).fetch();
-    } // optional, don't set this to ignore access control, defaults to allow all
+    },  // optional, don't set this to ignore access control, defaults to allow all
+    admin: function(identity) {
+        // should return a Promise that resolves to true or false
+        return identity.account().fetch().then(function(account) {
+            return account && account.get('is_admin');
+        })
+    },  // optional, the admin callback allows some user to bypass all access control rules
 })
 
 const Koa = require('koa');

@@ -166,14 +166,20 @@ function query(model, clauses) {
     return m
 }
 
-function check(ctx, identityCB, instances, rule) {
-    if (identityCB) {
-        return identityCB(ctx).then(function(identity) {
+function check(ctx, identityCB, adminCB, instances, rule) {
+    if (!identityCB) {
+        return Promise.resolve(true)
+    }
+    if (rule == ALLOW) {
+        return Promise.resolve(true);
+    }
+    return identityCB(ctx).then(function(identity) {
+        return adminCB(identity).then(function(isAdmin) {
+            if (isAdmin) {
+                return Promise.resolve(true);
+            }
             if (rule == DENY) {
                 return Promise.resolve(false);
-            }
-            if (rule == ALLOW) {
-                return Promise.resolve(true);
             }
             if (!_.isArray(instances)) {
                 instances = instances.toArray()
@@ -194,9 +200,7 @@ function check(ctx, identityCB, instances, rule) {
             }
             return Promise.resolve(true);
         })
-    } else {
-        return Promise.resolve(true);
-    }
+    })
 }
 
 module.exports = {

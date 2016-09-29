@@ -19,7 +19,7 @@ function J2S(opts) {
     const routes = opts.routes;
     const bookshelf = opts.bookshelf;
     const identityCB = opts.identity;
-    const adminCB = opts.admin || Promise.resolve(false);
+    const adminCB = opts.admin || function() {return Promise.resolve(false)};
     const controller = router();
     _.forEach(routes, function(item, path) {
         let model = item
@@ -36,7 +36,7 @@ function J2S(opts) {
         path = prefix + path
         controller.get(path + '/:id', function*(next) {
             let instances = yield model.where('id', this.params.id).fetchAll() || []
-            let check = yield core.check(this, identityCB, instances, rules.R)
+            let check = yield core.check(this, identityCB, adminCB, instances, rules.R)
             if (!check) {
                 throw new Error('operation not authorized')
             }
@@ -62,7 +62,7 @@ function J2S(opts) {
             } else {
                 instances = yield core.query(model, query).fetchAll()
             }
-            let check = yield core.check(this, identityCB, instances, rules.R)
+            let check = yield core.check(this, identityCB, adminCB, instances, rules.R)
             if (!check) {
                 throw new Error('operation not authorized')
             }
@@ -77,7 +77,7 @@ function J2S(opts) {
                 model: model
             })
             let instances = modelCollection.forge(data)
-            let check = yield core.check(this, identityCB, instances, rules.R)
+            let check = yield core.check(this, identityCB, adminCB, instances, rules.C)
             if (!check) {
                 throw new Error('operation not authorized')
             }
@@ -94,7 +94,7 @@ function J2S(opts) {
                 throw new Error('value of `data` must be JSON object')
             }
             let instances = yield core.query(model, query)
-            let check = yield core.check(this, identityCB, instances, rules.R)
+            let check = yield core.check(this, identityCB, adminCB, instances, rules.U)
             if (!check) {
                 throw new Error('operation not authorized')
             }
@@ -107,12 +107,9 @@ function J2S(opts) {
                 throw new Error('value of `query` must be JSON object')
             }
             let instances = yield core.query(model, query)
-            if (identityCB) {
-                let identity = yield identityCB(this)
-                let check = yield core.check(identity, instances, rules.D)
-                if (!check) {
-                    throw new Error('operation not authorized')
-                }
+            let check = yield core.check(this, identityCB, adminCB, instances, rules.D)
+            if (!check) {
+                throw new Error('operation not authorized')
             }
             let res = instances.destroy().toJSON()
             this.body = {data: res}
