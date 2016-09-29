@@ -165,7 +165,10 @@ const j2s = new J2S({
     admin: function(identity) {
         // should return a Promise that resolves to true or false
         return identity.account().fetch().then(function(account) {
-            return account && account.get('is_admin');
+            if (!account) {
+                return false;
+            }
+            return account.get('is_admin');
         })
     },  // optional, the admin callback allows some user to bypass all access control rules
 })
