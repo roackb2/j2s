@@ -80,8 +80,8 @@ function parserConditions(builder, conds, model) {
                 });
             }
         } else if (parts.length == 2) {
-            col = parts[0];
-            suffix = parts[1];
+            let col = parts[0];
+            let suffix = parts[1];
             if (!_.has(whereSuffixes, suffix)) {
                 throw new Error(util.format('suffix `%s` is not implemented', suffix))
             }

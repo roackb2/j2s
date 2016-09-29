@@ -93,12 +93,12 @@ function J2S(opts) {
             if (!_.isPlainObject(data)) {
                 throw new Error('value of `data` must be JSON object')
             }
-            let instances = yield core.query(model, query)
+            let instances = core.query(model, query)
             let check = yield core.check(this, identityCB, adminCB, instances, rules.U)
             if (!check) {
                 throw new Error('operation not authorized')
             }
-            let res = instances.save(data, options={method: "update"}).toJSON()
+            let res = yield instances.save(data, {method: 'update', patch: true})
             this.body = {data: res}
         })
         .delete(path, function*(next) {
@@ -106,12 +106,12 @@ function J2S(opts) {
             if (!_.isPlainObject(query)) {
                 throw new Error('value of `query` must be JSON object')
             }
-            let instances = yield core.query(model, query)
+            let instances = core.query(model, query)
             let check = yield core.check(this, identityCB, adminCB, instances, rules.D)
             if (!check) {
                 throw new Error('operation not authorized')
             }
-            let res = instances.destroy().toJSON()
+            let res = yield instances.destroy()
             this.body = {data: res}
         })
     })
