@@ -1,3 +1,5 @@
+'use strict';
+
 const _ = require('lodash');
 const util = require('util');
 const logger = require('./logging');
@@ -66,7 +68,7 @@ const whereSuffixes = {
 
 function parserConditions(builder, conds, model) {
     _.forIn(conds, (v, k) => {
-        parts = k.split('__');
+        let parts = k.split('__');
         if (parts.length == 1) {
             if (k == 'or') {
                 builder = builder.orWhere(function() {
@@ -152,7 +154,7 @@ const keywords = {
 }
 
 function query(model, clauses) {
-    m = model.query(function(builder) {
+    let m = model.query(function(builder) {
         _.forIn(clauses, (value, key) => {
             if (!_.has(keywords, key)) {
                 throw new Error(util.format('keyword `%s` is not implemented', key))
@@ -164,31 +166,37 @@ function query(model, clauses) {
     return m
 }
 
-function check(identity, instances, rule) {
-    if (rule == DENY) {
-        return Promise.resolve(false);
-    }
-    if (rule == ALLOW) {
-        return Promise.resolve(true);
-    }
-    if (!_.isArray(instances)) {
-        instances = instances.toArray()
-    }
-    for (var i = 0; i < instances.length; i++) {
-        let instance = instances[i];
-        if (_.isPlainObject(rule)) {
-            for (var key in rule) {
-                if (identity[key] != instance[rule[key]]) {
-                    return Promise.resolve(false);
+function check(ctx, identityCB, instances, rule) {
+    if (identityCB) {
+        return identityCB(ctx).then(function(identity) {
+            if (rule == DENY) {
+                return Promise.resolve(false);
+            }
+            if (rule == ALLOW) {
+                return Promise.resolve(true);
+            }
+            if (!_.isArray(instances)) {
+                instances = instances.toArray()
+            }
+            for (var i = 0; i < instances.length; i++) {
+                let instance = instances[i];
+                if (_.isPlainObject(rule)) {
+                    for (var key in rule) {
+                        if (identity[key] != instance[rule[key]]) {
+                            return Promise.resolve(false);
+                        }
+                    }
+                } else if (_.isFunction(rule)) {
+                    return rule(identity, instance);
+                } else {
+                    throw new Error(util.format('unknown rule type: %s', rule));
                 }
             }
-        } else if (_.isFunction(rule)) {
-            return rule(identity, instance);
-        } else {
-            throw new Error(util.format('unknown rule type: %s', rule));
-        }
+            return Promise.resolve(true);
+        })
+    } else {
+        return Promise.resolve(true);
     }
-    return Promise.resolve(true);
 }
 
 module.exports = {
