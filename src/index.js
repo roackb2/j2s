@@ -7,7 +7,7 @@ const Promise = require('bluebird');
 
 const accessProps = ['C', 'R', 'U', 'D']
 
-function setupController(controller, model, identityCB, adminCB, authCB, rules) {
+function setupController(controller, path, model, identityCB, adminCB, authCB, rules) {
     let getOne = function* (next) {
         let instances = yield model.where('id', this.params.id).fetchAll() || []
         let check = yield core.check(this, identityCB, adminCB, instances, rules.R)
@@ -146,7 +146,7 @@ function J2S(opts) {
             rules = _.pick(item, accessProps)
         }
         path = prefix + path
-        setupController(controller, model, identityCB, adminCB, authCB, rules);
+        setupController(controller, path, model, identityCB, adminCB, authCB, rules);
     })
     return controller;
 }
