@@ -1,7 +1,7 @@
 {
   "name": "j2s",
-  "version": "1.0.14",
-  "description": "JSON to SQL, build RESTful API server that accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control",
+  "version": "1.0.15",
+  "description": "JSON to SQL, build RESTful API server that accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable authentication middleware",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -11,6 +11,7 @@
     "url": "git+https://github.com/roackb2/j2s.git"
   },
   "keywords": [
+    "ORM",
     "JSON",
     "SQL",
     "RESTful",
@@ -21,7 +22,8 @@
     "query language",
     "bookshelf.js",
     "knex",
-    "access control"
+    "access control",
+    "GraphQL alternative"
   ],
   "author": "Jay Liang <roackb2@gmail.com> (https://www.facebook.com/profile.php?id=1391931108)",
   "license": "ISC",

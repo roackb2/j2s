@@ -1,6 +1,6 @@
 # j2s
 
-JSON to SQL, build RESTful API server that accepts JSON describing SQL query statements, and do CRUD accordingly, with configurable access control.
+JSON to SQL, build RESTful API server that accepts JSON describing SQL query statements, and do CRUD accordingly, with configurable access control & pluggable authentication middleware.
 
 * Tired of creating API every time that front-end requires new feature?
 * Your front-end development always are lagged due to backend API not yet ready?
@@ -129,6 +129,7 @@ module.exports =  {
     },
     '/books': {
         model: orm.Book,
+        auth: 'ignore', // ignore authentication
         // allow updates on books only when the book is written by the request user
         U: (identity, instance) => {
             // here, 'identity' represents the request User, 'instance' represents a queried Book
@@ -157,6 +158,15 @@ const j2s = new J2S({
         R: J2S.DENY,
         U: J2S.DENY,
         D: J2S.DENY
+    },                              // optional
+    defaultAuth: function* (next) {
+        // assume that request header contains user ID and a given access token,
+        // check that user with that token exists in database
+        let user = yield orm.User.where({id: this.request.header.user_id}, token: this.request.header.token).fetch();
+        if (!user) {
+            throw new Error('authentication fail')
+        }
+        yield next;
     },                              // optional
     identity: function (request) {
         // should return a Promise that resolves to a Bookshelf.js model instance
@@ -214,6 +224,44 @@ If you don't want access control at all, you could set your routes as:
 }
 ```
 
+### Authentication
+
+j2s allow any valid koa middleware to do the authentication, it will be directly passed to the koa-router middleware before accessing resource. You could setup authentication middleware in following ways:
+
+* The `defaultAuth` in j2s options, e.g.
+    ```javascript
+    const J2S = require('j2s')
+    const j2s = new J2S({
+        defaultAuth: function* (next) {
+            // do your own authentication logic here, or simply use authentication middlewares like passport.js
+        },
+        // .... other settings
+    })
+    ```
+
+* The `auth` in routes, e.g.
+    ```javascript
+    '/some_route': {
+        model: orm.SomeBookshelfModel,
+        auth: function* (next) {
+            // do your own authentication logic here, or simply use authentication middlewares like passport.js
+        },
+        C: J2S.ALLOW,
+        R: J2S.ALLOW,
+        U: J2S.ALLOW,
+        D: J2S.ALLOW
+    },
+    ```
+    You could set `auth` to `"ignore"` or `null` to opt out authentication for a single route.
+
+### Identity & Authentication
+
+In j2s options, you could set `identity` and `defaultAuth`/`auth` options. The meaning of them are as following:
+
+* `identity` refers the user identity for **Access Control**, or **Authorization**
+* `defaultAuth`/`auth` refers to the **Authentication** method.
+
+To control **Who** could access **What**, you need access control rules, and information about who is requesting the resource, `identity` is the information about who is sending the request, and `defaultAuth`/`auth` is to **Validate** that the user is exactly who it claims it to be, so that you could trust the identity from the client. This allows you to securely control the resource access.
 
 ### Basic Query Examples
 
