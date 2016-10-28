@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const util = require('util');
 const logger = require('./logging');
+const errors = require('./errors');
 const Promise = require('bluebird');
 
 const ALLOW = 'allow';
@@ -26,37 +27,37 @@ const whereSuffixes = {
     },
     'between': (builder, col, value) => {
         if (!_.isArray(value)) {
-            throw new Error('value for query clause with `between` suffix must be list');
+            throw errors.ErrBetweenSuffixValueShouldBeList;
         }
         if (value.length != 2) {
-            throw new Error('value for query clause with `between` suffix must be list of length 2');
+            throw errors.ErrBetweenSuffixValueShouldBeLengthTwo;
         }
         return builder.whereBetween(col, value);
     },
     'not_between': (builder, col, value) => {
         if (!_.isArray(value)) {
-            throw new Error('value for query clause with `not_between` suffix must be list');
+            throw errors.ErrNotBetweenSuffixShouldBeList;
         }
         if (value.length != 2) {
-            throw new Error('value for query clause with `not_between` suffix must be list of length 2');
+            throw errors.ErrNotBetweenSuffixShouldBeLengthTwo;
         }
         return builder.whereNotBetween(col, value);
     },
     'in': (builder, col, value) => {
         if (!_.isArray(value)) {
-            throw new Error('value for query clause with `in` suffix must be list');
+            throw errors.ErrInSuffixShouldBeList;
         }
         return builder.whereIn(col, value);
     },
     'not_in': (builder, col, value) => {
         if (!_.isArray(value)) {
-            throw new Error('value for query clause with `not_in` suffix must be list');
+            throw erros.ErrNotInSuffixShouldBeList;
         }
         return builder.whereIn(col, value);
     },
     'null': (builder, col, value) => {
         if (!_.isBoolean(value)) {
-            throw new Error('value for query clause with `not_in` suffix must be boolean');
+            throw errors.ErrNullSuffixShouldBeBoolean;
         }
         if (value) {
             return builder.whereNull(col);
@@ -83,7 +84,7 @@ function parserConditions(builder, conds, model) {
             let col = parts[0];
             let suffix = parts[1];
             if (!_.has(whereSuffixes, suffix)) {
-                throw new Error(util.format('suffix `%s` is not implemented', suffix))
+                throw errors.FnErrSuffixNotImplemented(suffix);
             }
             builder = whereSuffixes[suffix](builder, col, v)
         }
@@ -93,7 +94,7 @@ function parserConditions(builder, conds, model) {
 
 function join(builder, method, value) {
     if (!_.isPlainObject(value)) {
-        throw new Error('value of `join should be JSON object`')
+        throw errors.ErrJoinShouldBeJSONObject;
     }
     _.forEach(value, (v, k) => {
         builder = method.call(builder, k, v)
@@ -140,10 +141,11 @@ const keywords = {
     },
     'order_by': (builder, value) => {
         if (!_.isArray(value)) {
-            throw new Error('value of `order_by` should be array');
+            value = [value];
+            throw errors.ErrOrderByShouldBeList;
         }
         if (value.length > 2) {
-            throw new Error('value of `order_by` could only be of length 1 or 2');
+            throw errors.ErrOrderByLengthShouldBeTwo;
         }
         return builder.orderBy.apply(builder, value)
     },
@@ -157,7 +159,7 @@ function query(model, clauses) {
     let m = model.query(function(builder) {
         _.forIn(clauses, (value, key) => {
             if (!_.has(keywords, key)) {
-                throw new Error(util.format('keyword `%s` is not implemented', key))
+                throw errors.FnErrKeywordNotImplemented(key);
             }
             builder = keywords[key](builder, value, model)
         })
@@ -195,7 +197,7 @@ function check(ctx, identityCB, adminCB, instances, rule) {
                 } else if (_.isFunction(rule)) {
                     return rule(identity, instance);
                 } else {
-                    throw new Error(util.format('unknown rule type: %s', rule));
+                    throw errors.FnErrUnknowRuleType(rule);
                 }
             }
             return Promise.resolve(true);

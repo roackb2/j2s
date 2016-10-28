@@ -1,7 +1,8 @@
 'use strict';
 
 const _ = require('lodash');
-const core = require('./core')
+const core = require('./core');
+const errors = require('./errors');
 const router = require('koa-router');
 const Promise = require('bluebird');
 
@@ -12,7 +13,7 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
         let instances = yield model.where('id', this.params.id).fetchAll() || []
         let check = yield core.check(this, identityCB, adminCB, instances, rules.R)
         if (!check) {
-            throw new Error('operation not authorized')
+            throw errors.ErrOperationNotAuthorized;
         }
         let instance = instances.toJSON()
         if (instance.length > 0) {
@@ -27,7 +28,7 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
             query = JSON.parse(this.request.query.query)
         }
         if (!_.isPlainObject(query)) {
-            throw new Error('value of `query` must be JSON object')
+            throw errors.ErrQueryShouldBeJsonObject;
         }
         let instances = []
         if (_.has(query, 'populate')) {
@@ -39,7 +40,7 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
         }
         let check = yield core.check(this, identityCB, adminCB, instances, rules.R)
         if (!check) {
-            throw new Error('operation not authorized')
+            throw errors.ErrOperationNotAuthorized;
         }
         this.body = {data: instances}
     };
@@ -55,7 +56,7 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
         let instances = modelCollection.forge(data)
         let check = yield core.check(this, identityCB, adminCB, instances, rules.C)
         if (!check) {
-            throw new Error('operation not authorized')
+            throw errors.ErrOperationNotAuthorized;
         }
         let res = yield instances.invokeThen('save')
         this.body = {data: res}
@@ -64,16 +65,16 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
     let put = function* (next) {
         let query = this.request.body.query
         if (!_.isPlainObject(query)) {
-            throw new Error('value of `query` must be JSON object')
+            throw errors.ErrQueryShouldBeJsonObject;
         }
         let data = this.request.body.data
         if (!_.isPlainObject(data)) {
-            throw new Error('value of `data` must be JSON object')
+            throw errors.ErrDataShouldBeJsonObject;
         }
         let instances = core.query(model, query)
         let check = yield core.check(this, identityCB, adminCB, instances, rules.U)
         if (!check) {
-            throw new Error('operation not authorized')
+            throw errors.ErrOperationNotAuthorized;
         }
         let res = yield instances.save(data, {method: 'update', patch: true})
         this.body = {data: res}
@@ -82,12 +83,12 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
     let del = function* (next) {
         let query = this.request.body.query
         if (!_.isPlainObject(query)) {
-            throw new Error('value of `query` must be JSON object')
+            throw errors.ErrQueryShouldBeJsonObject;
         }
         let instances = core.query(model, query)
         let check = yield core.check(this, identityCB, adminCB, instances, rules.D)
         if (!check) {
-            throw new Error('operation not authorized')
+            throw errors.ErrOperationNotAuthorized;
         }
         let res = yield instances.destroy()
         this.body = {data: res}
@@ -151,7 +152,8 @@ function J2S(opts) {
     return controller;
 }
 
-J2S.ALLOW = core.ALLOW
-J2S.DENY = core.DENY
+J2S.ALLOW = core.ALLOW;
+J2S.DENY = core.DENY;
+J2S.errors = errors;
 
 module.exports = J2S
