@@ -3,50 +3,61 @@
 const _ = require('lodash');
 const core = require('./core');
 const errors = require('./errors');
-const router = require('koa-router');
+const Router = require('koa-router');
 const Promise = require('bluebird');
 
 const accessProps = ['C', 'R', 'U', 'D']
 
 function setupController(bookshelf, controller, path, model, identityCB, adminCB, authCB, rules) {
-    let getOne = function* (next) {
-        let instances = yield model.where('id', this.params.id).fetchAll() || []
-        let check = yield core.check(this, identityCB, adminCB, instances, rules.R)
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
-        }
-        let instance = instances.toJSON()
-        if (instance.length > 0) {
-            instance = instance[0]
-        }
-        this.body = {data: instance}
+    let getOne = function (ctx, next) {
+        return model.where('id', ctx.params.id).fetchAll().then(function (instances) {
+            return Promise.all([
+                instances,
+                core.check(ctx, identityCB, adminCB, instances, rules.R)
+            ])
+        }).spread(function (instances, check) {
+            if (!check) {
+                throw errors.ErrOperationNotAuthorized;
+            }
+            let instance = instances.toJSON()
+            if (instance.length > 0) {
+                instance = instance[0]
+            }
+            ctx.body = {data: instance}
+        })
     };
 
-    let get = function* (next) {
+    let get = function (ctx, next) {
         let query = {}
-        if (this.request.query.query) {
-            query = JSON.parse(this.request.query.query)
+        if (ctx.request.query.query) {
+            query = JSON.parse(ctx.request.query.query)
         }
         if (!_.isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        let instances = []
+        let queryPromise = []
         if (_.has(query, 'populate')) {
-            instances = yield core.query(model, query).fetchAll({
+            queryPromise = core.query(model, query).fetchAll({
                 withRelated: query.populate
             })
         } else {
-            instances = yield core.query(model, query).fetchAll()
+            queryPromise = core.query(model, query).fetchAll()
         }
-        let check = yield core.check(this, identityCB, adminCB, instances, rules.R)
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
-        }
-        this.body = {data: instances}
+        return queryPromise.then(function(instances) {
+            return Promise.all([
+                instances,
+                core.check(ctx, identityCB, adminCB, instances, rules.R)
+            ])
+        }).spread(function(instances, check) {
+            if (!check) {
+                throw errors.ErrOperationNotAuthorized;
+            }
+            ctx.body = {data: instances}
+        })
     };
 
-    let post = function* (next) {
-        let data = this.request.body.data
+    let post = function (ctx, next) {
+        let data = ctx.request.body.data
         if (!_.isArray(data)) {
             data = [data]
         }
@@ -54,44 +65,50 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
             model: model
         })
         let instances = modelCollection.forge(data)
-        let check = yield core.check(this, identityCB, adminCB, instances, rules.C)
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
-        }
-        let res = yield instances.invokeThen('save')
-        this.body = {data: res}
+        return core.check(ctx, identityCB, adminCB, instances, rules.C).then(function(check) {
+            if (!check) {
+                throw errors.ErrOperationNotAuthorized;
+            }
+            return instances.invokeThen('save');
+        }).then(function(res) {
+            ctx.body = {data: res}
+        })
     };
 
-    let put = function* (next) {
-        let query = this.request.body.query
+    let put = function (ctx, next) {
+        let query = ctx.request.body.query
         if (!_.isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        let data = this.request.body.data
+        let data = ctx.request.body.data
         if (!_.isPlainObject(data)) {
             throw errors.ErrDataShouldBeJsonObject;
         }
         let instances = core.query(model, query)
-        let check = yield core.check(this, identityCB, adminCB, instances, rules.U)
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
-        }
-        let res = yield instances.save(data, {method: 'update', patch: true})
-        this.body = {data: res}
+        return core.check(ctx, identityCB, adminCB, instances, rules.U).then(function(check) {
+            if (!check) {
+                throw errors.ErrOperationNotAuthorized;
+            }
+            return instances.save(data, {method: 'update', patch: true})
+        }).then(function(res) {
+            ctx.body = {data: res}
+        })
     };
 
-    let del = function* (next) {
-        let query = this.request.body.query
+    let del = function (ctx, next) {
+        let query = ctx.request.body.query
         if (!_.isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
         let instances = core.query(model, query)
-        let check = yield core.check(this, identityCB, adminCB, instances, rules.D)
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
-        }
-        let res = yield instances.destroy()
-        this.body = {data: res}
+        return core.check(ctx, identityCB, adminCB, instances, rules.D).then(function(check) {
+            if (!check) {
+                throw errors.ErrOperationNotAuthorized;
+            }
+            return instances.destroy()
+        }).then(function(res) {
+            ctx.body = {data: res}
+        })
     };
 
     if (authCB) {
@@ -122,7 +139,9 @@ function J2S(opts) {
     }
     const routes = opts.routes;
     const bookshelf = opts.bookshelf;
-    const controller = router();
+    const controller = new Router({
+        prefix: prefix
+    });
     const defaultAuthCB = opts.defaultAuth;
     const identityCB = opts.identity;
     const adminCB = opts.admin || function() {return Promise.resolve(false)};
@@ -146,7 +165,6 @@ function J2S(opts) {
             }
             rules = _.pick(item, accessProps)
         }
-        path = prefix + path
         setupController(bookshelf, controller, path, model, identityCB, adminCB, authCB, rules);
     })
     return controller;
