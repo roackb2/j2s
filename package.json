@@ -1,7 +1,7 @@
 {
   "name": "j2s",
-  "version": "1.0.19",
-  "description": "JSON to SQL, build RESTful API server that accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable authentication middleware",
+  "version": "1.0.20",
+  "description": "JSON to SQL, build RESTful API server that accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable middlewares",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

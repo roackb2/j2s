@@ -6,14 +6,15 @@ const errors = require('./errors');
 const Router = require('koa-router');
 const Promise = require('bluebird');
 
-const accessProps = ['C', 'R', 'U', 'D']
+const methods = ['C', 'R', 'U', 'D'];
+const configProps = ['access', 'identity', 'admin', 'middlewares'];
 
-function setupController(bookshelf, controller, path, model, identityCB, adminCB, authCB, rules) {
+function setupController(bookshelf, controller, path, opts) {
     let getOne = function (ctx, next) {
-        return model.where('id', ctx.params.id).fetchAll().then(function (instances) {
+        return opts.model.where('id', ctx.params.id).fetchAll().then(function (instances) {
             return Promise.all([
                 instances,
-                core.check(ctx, identityCB, adminCB, instances, rules.R)
+                core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R)
             ])
         }).spread(function (instances, check) {
             if (!check) {
@@ -37,16 +38,16 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
         }
         let queryPromise = []
         if (_.has(query, 'populate')) {
-            queryPromise = core.query(model, query).fetchAll({
+            queryPromise = core.query(opts.model, query).fetchAll({
                 withRelated: query.populate
             })
         } else {
-            queryPromise = core.query(model, query).fetchAll()
+            queryPromise = core.query(opts.model, query).fetchAll()
         }
         return queryPromise.then(function(instances) {
             return Promise.all([
                 instances,
-                core.check(ctx, identityCB, adminCB, instances, rules.R)
+                core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R)
             ])
         }).spread(function(instances, check) {
             if (!check) {
@@ -62,10 +63,10 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
             data = [data]
         }
         let modelCollection = bookshelf.Collection.extend({
-            model: model
+            model: opts.model
         })
         let instances = modelCollection.forge(data)
-        return core.check(ctx, identityCB, adminCB, instances, rules.C).then(function(check) {
+        return core.check(ctx, opts.identity.C, opts.admin.C, instances, opts.access.C).then(function(check) {
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
@@ -84,8 +85,8 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
         if (!_.isPlainObject(data)) {
             throw errors.ErrDataShouldBeJsonObject;
         }
-        let instances = core.query(model, query)
-        return core.check(ctx, identityCB, adminCB, instances, rules.U).then(function(check) {
+        let instances = core.query(opts.model, query)
+        return core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U).then(function(check) {
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
@@ -100,8 +101,8 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
         if (!_.isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        let instances = core.query(model, query)
-        return core.check(ctx, identityCB, adminCB, instances, rules.D).then(function(check) {
+        let instances = core.query(opts.model, query)
+        return core.check(ctx, opts.identity.D, opts.admin.D, instances, opts.access.D).then(function(check) {
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
@@ -111,61 +112,64 @@ function setupController(bookshelf, controller, path, model, identityCB, adminCB
         })
     };
 
-    if (authCB) {
-        controller
-        .get(path + '/:id', authCB, getOne)
-        .get(path, authCB, get)
-        .post(path, authCB, post)
-        .put(path, authCB, put)
-        .delete(path, authCB, del)
-    } else {
-        controller
-        .get(path + '/:id', getOne)
-        .get(path, get)
-        .post(path, post)
-        .put(path, put)
-        .delete(path, del)
-    }
+    controller.get.apply(controller, [path + '/:id'].concat(opts.middlewares.R).concat([getOne]));
+    controller.get.apply(controller, [path].concat(opts.middlewares.R).concat([get]));
+    controller.post.apply(controller, [path].concat(opts.middlewares.C).concat([post]));
+    controller.put.apply(controller, [path].concat(opts.middlewares.U).concat([put]));
+    controller.delete.apply(controller, [path].concat(opts.middlewares.D).concat([del]));
 }
 
-function J2S(opts) {
-    opts = opts || {}
-    const prefix = opts.prefix || ''
-    const defaultAccess = opts.defaultAccess || {
-        C: core.ALLOW,
-        R: core.ALLOW,
-        U: core.ALLOW,
-        D: core.ALLOW,
+function setDefaultOpts(content) {
+    let obj = {};
+    _.each(methods, function(method) {
+        obj[method] = content;
+    })
+    return obj
+}
+
+function setOptions(res, defaultOpts) {
+    _.each(configProps, function(prop) {
+        if (_.has(defaultOpts, prop) && !_.isNil(defaultOpts, prop)) {
+            if (_.isPlainObject(defaultOpts[prop])) {
+                _.each(methods, function(method) {
+                    res[prop][method] = defaultOpts[prop][method];
+                })
+            } else {
+                res[prop] = setDefaultOpts(defaultOpts[prop]);
+            }
+        }
+    })
+    return res;
+}
+
+function resolveOptions(defaultOpts, route) {
+    let res = {
+        access: setDefaultOpts(core.ALLOW),
+        identity: setDefaultOpts(defaultOpts.identity), // identity could not be optional
+        admin: setDefaultOpts(function() {return Promise.resolve(false)}),
+        middlewares: setDefaultOpts([]),
+    };
+    res = setOptions(res, defaultOpts);
+    if (_.isPlainObject(route)) {
+        res.model = route.model;
+        res = setOptions(res, route);
+    } else {
+        res.model = route;
     }
-    const routes = opts.routes;
-    const bookshelf = opts.bookshelf;
+    return res;
+}
+
+function J2S(defaultOpts) {
+    defaultOpts = defaultOpts || {}
+    const prefix = defaultOpts.prefix || ''
+    const routes = defaultOpts.routes;
+    const bookshelf = defaultOpts.bookshelf;
     const controller = new Router({
         prefix: prefix
     });
-    const defaultAuthCB = opts.defaultAuth;
-    const identityCB = opts.identity;
-    const adminCB = opts.admin || function() {return Promise.resolve(false)};
-    _.forEach(routes, function(item, path) {
-        let model = item;
-        let rules = defaultAccess;
-        let authCB = defaultAuthCB;
-        if (_.isPlainObject(item)) {
-            model = item.model
-            _.each(accessProps, prop => {
-                if (!_.has(item, prop)) {
-                    item[prop] = defaultAccess[prop]
-                }
-            })
-            if (_.has(item, 'auth')) {
-                if (item.auth === 'ignore') {
-                    authCB = null;
-                } else {
-                    authCB = item.auth;
-                }
-            }
-            rules = _.pick(item, accessProps)
-        }
-        setupController(bookshelf, controller, path, model, identityCB, adminCB, authCB, rules);
+    _.forEach(routes, function(route, path) {
+        let resolvedOpts = resolveOptions(defaultOpts, route);
+        setupController(bookshelf, controller, path, resolvedOpts);
     })
     return controller;
 }
