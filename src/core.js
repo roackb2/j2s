@@ -73,11 +73,11 @@ function parserConditions(builder, conds, model) {
         if (parts.length == 1) {
             if (k == 'or') {
                 builder = builder.orWhere(function() {
-                    parserConditions(this, v, model)
+                    parserConditions(this, v, model);
                 })
             } else {
                 builder = builder.where(function() {
-                    this.where(k, v)
+                    this.where(k, v);
                 });
             }
         } else if (parts.length == 2) {
@@ -86,10 +86,10 @@ function parserConditions(builder, conds, model) {
             if (!_.has(whereSuffixes, suffix)) {
                 throw errors.FnErrSuffixNotImplemented(suffix);
             }
-            builder = whereSuffixes[suffix](builder, col, v)
+            builder = whereSuffixes[suffix](builder, col, v);
         }
     })
-    return builder
+    return builder;
 }
 
 function join(builder, method, value) {
@@ -97,9 +97,9 @@ function join(builder, method, value) {
         throw errors.ErrJoinShouldBeJSONObject;
     }
     _.forEach(value, (v, k) => {
-        builder = method.call(builder, k, v)
+        builder = method.call(builder, k, v);
     })
-    return builder
+    return builder;
 }
 
 const keywords = {
@@ -107,37 +107,37 @@ const keywords = {
         return parserConditions(builder, value, model);
     },
     'join': (builder, value) => {
-        return join(builder, builder.join, value)
+        return join(builder, builder.join, value);
     },
     'inner_join': (builder, value) => {
-        return join(builder, builder.innerJoin, value)
+        return join(builder, builder.innerJoin, value);
     },
     'left_join': (builder, value) => {
-        return join(builder, builder.leftJoin, value)
+        return join(builder, builder.leftJoin, value);
     },
     'left_outer_join': (builder, value) => {
-        return join(builder, builder.leftOuterJoin, value)
+        return join(builder, builder.leftOuterJoin, value);
     },
     'right_join': (builder, value) => {
-        return join(builder, builder.rightJoin, value)
+        return join(builder, builder.rightJoin, value);
     },
     'right_outer_join': (builder, value) => {
-        return join(builder, builder.rightOuterJoin, value)
+        return join(builder, builder.rightOuterJoin, value);
     },
     'full_outer_join': (builder, value) => {
-        return join(builder, builder.fullOuterJoin, value)
+        return join(builder, builder.fullOuterJoin, value);
     },
     'cross_join': (builder, value) => {
         return builder.crossJoin(value)
     },
     'select': (builder, value) => {
-        return builder.select.apply(builder, value)
+        return builder.select.apply(builder, value);
     },
     'limit': (builder, value) => {
-        return builder.limit(value)
+        return builder.limit(value);
     },
     'offset': (builder, value) => {
-        return builder.offset(value)
+        return builder.offset(value);
     },
     'order_by': (builder, value) => {
         if (!_.isArray(value)) {
@@ -147,12 +147,16 @@ const keywords = {
         if (value.length > 2) {
             throw errors.ErrOrderByLengthShouldBeTwo;
         }
-        return builder.orderBy.apply(builder, value)
+        return builder.orderBy.apply(builder, value);
     },
     'populate': (builder, value) => {
         // noop
-        return builder
+        return builder;
     },
+    'fn': (builder, value) => {
+        // noop
+        return builder;
+    }
 }
 
 function query(model, clauses) {

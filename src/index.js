@@ -9,6 +9,20 @@ const Promise = require('bluebird');
 const methods = ['C', 'R', 'U', 'D'];
 const configProps = ['access', 'identity', 'admin', 'middlewares'];
 
+function chainFns (instances, fns) {
+    if (fns.length > 0) {
+        let fn = fns.shift();
+        return Promise.all(instances.invokeMap(fn)).then(function(results) {
+            for(var i = 0; i < instances.length; i++) {
+                instances.at(i).set(fn, results[i]);
+            }
+            return chainFns(instances, fns);
+        });
+    } else {
+        return instances;
+    }
+}
+
 function setupController(bookshelf, controller, path, opts) {
     let getOne = function (ctx, next) {
         return opts.model.where('id', ctx.params.id).fetchAll().then(function (instances) {
@@ -53,6 +67,12 @@ function setupController(bookshelf, controller, path, opts) {
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
+            if (_.has(query, 'fn')) {
+                return chainFns(instances, query.fn);
+            } else {
+                return instances;
+            }
+        }).then(function (instances) {
             ctx.body = {data: instances}
         })
     };
