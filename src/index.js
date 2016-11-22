@@ -105,12 +105,16 @@ function setupController(bookshelf, controller, path, opts) {
         if (!_.isPlainObject(data)) {
             throw errors.ErrDataShouldBeJsonObject;
         }
-        let instances = core.query(opts.model, query)
-        return core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U).then(function(check) {
+        return core.query(opts.model, query).fetchAll().then(function(instances) {
+            return Promise.all([
+                instances,
+                core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U)
+            ])
+        }).spread(function(instances, check) {
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
-            return instances.save(data, {method: 'update', patch: true})
+            return instances.invokeThen('save', data, {method: 'update', patch: true});
         }).then(function(res) {
             ctx.body = {data: res}
         })
@@ -121,12 +125,16 @@ function setupController(bookshelf, controller, path, opts) {
         if (!_.isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        let instances = core.query(opts.model, query)
-        return core.check(ctx, opts.identity.D, opts.admin.D, instances, opts.access.D).then(function(check) {
+        return core.query(opts.model, query).fetchAll().then(function(instances) {
+            return Promise.all([
+                instances,
+                core.check(ctx, opts.identity.D, opts.admin.D, instances, opts.access.D)
+            ])
+        }).spread(function(instances, check) {
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
-            return instances.destroy()
+            return instances.invokeThen('destroy')
         }).then(function(res) {
             ctx.body = {data: res}
         })
