@@ -9,14 +9,14 @@ const Promise = require('bluebird');
 const methods = ['C', 'R', 'U', 'D'];
 const configProps = ['access', 'identity', 'admin', 'middlewares'];
 
-function chainFns (instances, fns) {
+function chainFns (ctx, instances, fns) {
     if (fns.length > 0) {
         let fn = fns.shift();
-        return Promise.all(instances.invokeMap(fn)).then(function(results) {
+        return Promise.all(instances.invokeMap(fn, ctx)).then(function(results) {
             for(var i = 0; i < instances.length; i++) {
                 instances.at(i).set(fn, results[i]);
             }
-            return chainFns(instances, fns);
+            return chainFns(ctx, instances, fns);
         });
     } else {
         return instances;
@@ -68,7 +68,7 @@ function setupController(bookshelf, controller, path, opts) {
                 throw errors.ErrOperationNotAuthorized;
             }
             if (_.has(query, 'fn')) {
-                return chainFns(instances, query.fn);
+                return chainFns(ctx, instances, query.fn);
             } else {
                 return instances;
             }
