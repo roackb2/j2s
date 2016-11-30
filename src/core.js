@@ -53,7 +53,7 @@ const whereSuffixes = {
         if (!_.isArray(value)) {
             throw erros.ErrNotInSuffixShouldBeList;
         }
-        return builder.whereIn(col, value);
+        return builder.whereNotIn(col, value);
     },
     'null': (builder, col, value) => {
         if (!_.isBoolean(value)) {
