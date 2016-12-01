@@ -67,13 +67,14 @@ const whereSuffixes = {
     }
 }
 
-function parserConditions(builder, conds, model) {
+// accepts knex query builder and conditions object, returns the builder
+function parserConditions(builder, conds) {
     _.forIn(conds, (v, k) => {
         let parts = k.split('__');
         if (parts.length == 1) {
             if (k == 'or') {
                 builder = builder.orWhere(function() {
-                    parserConditions(this, v, model);
+                    parserConditions(this, v);
                 })
             } else {
                 builder = builder.where(function() {
@@ -103,8 +104,8 @@ function join(builder, method, value) {
 }
 
 const keywords = {
-    'where': (builder, value, model) => {
-        return parserConditions(builder, value, model);
+    'where': (builder, value) => {
+        return parserConditions(builder, value);
     },
     'join': (builder, value) => {
         return join(builder, builder.join, value);
@@ -139,6 +140,9 @@ const keywords = {
     'offset': (builder, value) => {
         return builder.offset(value);
     },
+    'group_by': (builder, value) => {
+        return builder.groupBy(value);
+    },
     'order_by': (builder, value) => {
         if (!_.isArray(value)) {
             value = [value];
@@ -148,6 +152,21 @@ const keywords = {
             throw errors.ErrOrderByLengthShouldBeTwo;
         }
         return builder.orderBy.apply(builder, value);
+    },
+    'count': (builder, value) => {
+        return builder.count(value);
+    },
+    'min': (builder, value) => {
+        return builder.min(value);
+    },
+    'max': (builder, value) => {
+        return builder.max(value);
+    },
+    'avg': (builder, value) => {
+        return builder.avg(value);
+    },
+    'sum': (builder, value) => {
+        return builder.sum(value);
     },
     'populate': (builder, value) => {
         // noop
@@ -159,14 +178,21 @@ const keywords = {
     }
 }
 
+// accepts a knex query builder
+function _query(builder, clauses) {
+    _.forIn(clauses, (value, key) => {
+        if (!_.has(keywords, key)) {
+            throw errors.FnErrKeywordNotImplemented(key);
+        }
+        builder = keywords[key](builder, value)
+    })
+    return builder
+}
+
+// accepts a bookshelf model
 function query(model, clauses) {
     let m = model.query(function(builder) {
-        _.forIn(clauses, (value, key) => {
-            if (!_.has(keywords, key)) {
-                throw errors.FnErrKeywordNotImplemented(key);
-            }
-            builder = keywords[key](builder, value, model)
-        })
+        builder = _query(builder, clauses)
         logger.debug('query statement: %s', builder.toString())
     })
     return m

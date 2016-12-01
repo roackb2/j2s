@@ -492,6 +492,36 @@ Available top level keys are:
     ```
     which will join the "photo" table on the condition that "photo_id" column of the "user" table with value equal to the "id" column of the "photo" table. (the example assumes the querying table is the "user" table)
 
+8. `group_by`: group by a column, need to be used along with aggregation methods.
+    value example:
+    ```json
+    "photo_id"
+    ```
+
+9. `count`: count on a column.
+    value example:
+    ```json
+    "id"
+    ```
+
+10. `min`: get minimum value on a column.
+    value example:
+    ```json
+    "badge"
+    ```
+
+11. `max`: get maximum value on a column.
+    value example:
+    ```json
+    "badge"
+    ```
+
+12. `avg`: get average value on a column.
+    value example:
+    ```json
+    "badge"
+    ```
+
 ### Where Conditions Suffixes
 
 You can use suffix appended after a column in a where condition to achieve advanced query clause.
