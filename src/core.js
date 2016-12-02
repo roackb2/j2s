@@ -179,7 +179,7 @@ const keywords = {
 }
 
 // accepts a knex query builder
-function _query(builder, clauses) {
+function builderQuery(builder, clauses) {
     _.forIn(clauses, (value, key) => {
         if (!_.has(keywords, key)) {
             throw errors.FnErrKeywordNotImplemented(key);
@@ -192,7 +192,7 @@ function _query(builder, clauses) {
 // accepts a bookshelf model
 function query(model, clauses) {
     let m = model.query(function(builder) {
-        builder = _query(builder, clauses)
+        builder = builderQuery(builder, clauses)
         logger.debug('query statement: %s', builder.toString())
     })
     return m
@@ -236,6 +236,7 @@ function check(ctx, identityCB, adminCB, instances, rule) {
 }
 
 module.exports = {
+    builderQuery: builderQuery,
     query: query,
     check: check,
     ALLOW: ALLOW,

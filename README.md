@@ -474,10 +474,19 @@ Available top level keys are:
     ```json
     10
     ```
-6. `populate`: populates any foreign constraint relations with the values in the foreign table, you must define relations using Bookshelf on your own, like the `photo` function of `User` model in examples above.
+6. `populate`: populates any foreign constraint relations with the values in the foreign table, you must define relations using Bookshelf on your own, like the `photo` function of `User` model in examples above. The value of a population could also be an JSON object that contains nested query statements.
     value example:
     ```json
     ["photo"]
+    ```
+
+    or like following:
+    ```json
+    [{
+        "photo": {
+            "select": ["id", "url"]
+        }
+    }]
     ```
 
 7. joins: lots of joining operations are supported, available keywords including:

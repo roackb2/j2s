@@ -44,6 +44,7 @@ module.exports = {
     ErrOperationNotAuthorized: new J2SError(100113, 'operation not authorized'),
     ErrQueryShouldBeJsonObject: new J2SError(100115, 'value of `query` must be JSON object'),
     ErrDataShouldBeJsonObject: new J2SError(100117, 'value of `data` must be JSON object'),
-
-
+    ErrPopulateShouldBeList: new J2SError(100118, 'value of `populate` must be JSON array'),
+    ErrPopulateObjectShouldHaveExactlyOneKey: new J2SError(100119, 'value of element in `populate` with object type should have exactly one key'),
+    ErrPopulateElementShouldBeStringOrObject: new J2SError(100120, 'value of element in `populate` should be either JSON object or string'),
 }

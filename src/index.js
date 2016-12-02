@@ -52,8 +52,29 @@ function setupController(bookshelf, controller, path, opts) {
         }
         let queryPromise = []
         if (_.has(query, 'populate')) {
+            if (!_.isArray(query.populate)) {
+                throw errors.ErrPopulateShouldBeList
+            }
+            let populate = _.map(query.populate, function(population) {
+                if (_.isPlainObject(population)) {
+                    let keys = _.keys(population)
+                    if (keys.length != 1) {
+                        throw errors.ErrPopulateObjectShouldHaveExactlyOneKey
+                    }
+                    let key = keys[0]
+                    let res = {}
+                    res[key] = function(builder) {
+                        core.builderQuery(builder, population[key])
+                    }
+                    return res;
+                } else if (_.isString(population)){
+                    return population;
+                } else {
+                    throw errors.ErrPopulateElementShouldBeStringOrObject;
+                }
+            })
             queryPromise = core.query(opts.model, query).fetchAll({
-                withRelated: query.populate
+                withRelated: populate
             })
         } else {
             queryPromise = core.query(opts.model, query).fetchAll()
