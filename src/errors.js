@@ -47,4 +47,5 @@ module.exports = {
     ErrPopulateShouldBeList: new J2SError(100118, 'value of `populate` must be JSON array'),
     ErrPopulateObjectShouldHaveExactlyOneKey: new J2SError(100119, 'value of element in `populate` with object type should have exactly one key'),
     ErrPopulateElementShouldBeStringOrObject: new J2SError(100120, 'value of element in `populate` should be either JSON object or string'),
+    ErrExistsObjectShouldHaveExactlyOneKey: new J2SError(100121, 'value of `exists` or `not_exists` should be JSON object that contains exactly one key'),
 }

@@ -64,7 +64,7 @@ const whereSuffixes = {
         } else {
             return builder.whereNotNull(col);
         }
-    }
+    },
 }
 
 // accepts knex query builder and conditions object, returns the builder
@@ -76,10 +76,30 @@ function parserConditions(builder, conds) {
                 builder = builder.orWhere(function() {
                     parserConditions(this, v);
                 })
+            } else if (k == 'exists' || k == 'not_exists') {
+                let keys = _.keys(v);
+                if (keys.length != 1) {
+                    throw errors.ErrExistsObjectShouldHaveExactlyOneKey;
+                }
+                let key = keys[0];
+                if (k == 'exists') {
+                    builder = builder.whereExists(function() {
+                        this.select('*').from(key);
+                        parserConditions(this, v[key]);
+                    })
+                } else {
+                    builder = builder.whereNotExists(function() {
+                        this.select('*').from(key);
+                        parserConditions(this, v[key]);
+                    })
+                }
             } else {
-                builder = builder.where(function() {
-                    this.where(k, v);
-                });
+                if (_.isString(v) && v.split('.').length > 1) {
+                    // value is an identifier
+                    builder = builder.whereRaw('?? = ??', [k, v]);
+                } else {
+                    builder = builder.whereRaw('?? = ?', [k, v]);
+                }
             }
         } else if (parts.length == 2) {
             let col = parts[0];

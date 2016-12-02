@@ -549,7 +549,9 @@ Available suffixes includes:
 9. `not_in`: not in a list of values
 10. `null`: set to true to find records with null values on that column, or false to find  not null ones.
 11. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ANDed together, and these conditions are ORed with conditions with same level as the `or` keyword.
-see [Advanced Examples](#advanced-examples)
+12. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
+13. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
+
 
 ### Advanced Examples
 
@@ -565,6 +567,11 @@ see [Advanced Examples](#advanced-examples)
         "or": {
             "username": "test",
             "user.id__in": [1, 2, 3]
+        },
+        "exists": {
+            "photo": {
+                "user.photo_id": "photo.id"
+            }
         }
     },
     "join": {
