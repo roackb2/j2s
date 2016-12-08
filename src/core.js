@@ -192,7 +192,11 @@ const keywords = {
         // noop
         return builder;
     },
-    'fn': (builder, value) => {
+    'add_attr': (builder, value) => {
+        // noop
+        return builder;
+    },
+    'add_clause': (builder, value) => {
         // noop
         return builder;
     }

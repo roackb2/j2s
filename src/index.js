@@ -9,21 +9,21 @@ const Promise = require('bluebird');
 const methods = ['C', 'R', 'U', 'D'];
 const configProps = ['access', 'identity', 'admin', 'middlewares'];
 
-function chainFns (ctx, instances, fns) {
-    if (fns.length > 0) {
-        let fn = fns.shift();
-        return Promise.all(instances.invokeMap(fn, ctx)).then(function(results) {
+function chainFuncs (ctx, instances, funcs) {
+    if (funcs.length > 0) {
+        let func = funcs.shift();
+        return Promise.all(instances.invokeMap(func, ctx)).then(function(results) {
             for(var i = 0; i < instances.length; i++) {
-                instances.at(i).set(fn, results[i]);
+                instances.at(i).set(func, results[i]);
             }
-            return chainFns(ctx, instances, fns);
+            return chainFuncs(ctx, instances, funcs);
         });
     } else {
         return instances;
     }
 }
 
-function setupController(bookshelf, controller, path, opts) {
+function setupController(bookshelf, controller, path, opts, forbids) {
     let getOne = function (ctx, next) {
         return opts.model.where('id', ctx.params.id).fetchAll().then(function (instances) {
             return Promise.all([
@@ -51,9 +51,22 @@ function setupController(bookshelf, controller, path, opts) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
         let queryPromise = []
+        _.each(_.keys(query), function(key) {
+            if (_.includes(forbids, key)) {
+                throw errors.FnErrKeyForbidden(key);
+            }
+        })
+        if (_.has(query, 'add_clause')) {
+            if (!_.isArray(query.add_clause)) {
+                throw errors.ErrExtraShouldBeList;
+            }
+            _.each(query.add_clause, function(prop) {
+                opts.model[prop](ctx, query);
+            })
+        }
         if (_.has(query, 'populate')) {
             if (!_.isArray(query.populate)) {
-                throw errors.ErrPopulateShouldBeList
+                throw errors.ErrPopulateShouldBeList;
             }
             let populate = _.map(query.populate, function(population) {
                 if (_.isPlainObject(population)) {
@@ -88,8 +101,8 @@ function setupController(bookshelf, controller, path, opts) {
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
-            if (_.has(query, 'fn')) {
-                return chainFns(ctx, instances, query.fn);
+            if (_.has(query, 'add_attr')) {
+                return chainFuncs(ctx, instances, query.add_attr);
             } else {
                 return instances;
             }
@@ -213,12 +226,13 @@ function J2S(defaultOpts) {
     const prefix = defaultOpts.prefix || ''
     const routes = defaultOpts.routes;
     const bookshelf = defaultOpts.bookshelf;
+    const forbids = defaultOpts.forbids || [];
     const controller = new Router({
         prefix: prefix
     });
     _.forEach(routes, function(route, path) {
         let resolvedOpts = resolveOptions(defaultOpts, route);
-        setupController(bookshelf, controller, path, resolvedOpts);
+        setupController(bookshelf, controller, path, resolvedOpts, forbids);
     })
     return controller;
 }

@@ -48,4 +48,8 @@ module.exports = {
     ErrPopulateObjectShouldHaveExactlyOneKey: new J2SError(100119, 'value of element in `populate` with object type should have exactly one key'),
     ErrPopulateElementShouldBeStringOrObject: new J2SError(100120, 'value of element in `populate` should be either JSON object or string'),
     ErrExistsObjectShouldHaveExactlyOneKey: new J2SError(100121, 'value of `exists` or `not_exists` should be JSON object that contains exactly one key'),
+    ErrExtraShouldBeList: new J2SError(100122, 'value of `extra` should be JSON Array'),
+    FnErrKeyForbidden: function(keyword) {
+        return new J2SError(100123, util.format('keyword `%s` is forbidden', keyword));
+    },
 }
