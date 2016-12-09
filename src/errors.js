@@ -52,4 +52,5 @@ module.exports = {
     FnErrKeyForbidden: function(keyword) {
         return new J2SError(100123, util.format('keyword `%s` is forbidden', keyword));
     },
+    ErrAddClauseElementShouldBeStringOrObject: new J2SError(100124, 'value of element in `add_clause` should be either JSON object or string'),
 }

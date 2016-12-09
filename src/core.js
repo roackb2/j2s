@@ -1,6 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
+const knex = require('knex');
 const util = require('util');
 const logger = require('./logging');
 const errors = require('./errors');
@@ -67,6 +68,16 @@ const whereSuffixes = {
     },
 }
 
+function existsQuery(table, value) {
+    this.from(table);
+    if (!_.has(value, 'where')) {
+        this.select('*');
+        parserConditions(this, value);
+    } else {
+        builderQuery(this, value);
+    }
+}
+
 // accepts knex query builder and conditions object, returns the builder
 function parserConditions(builder, conds) {
     _.forIn(conds, (v, k) => {
@@ -82,15 +93,14 @@ function parserConditions(builder, conds) {
                     throw errors.ErrExistsObjectShouldHaveExactlyOneKey;
                 }
                 let key = keys[0];
+                let value = v[key];
                 if (k == 'exists') {
                     builder = builder.whereExists(function() {
-                        this.select('*').from(key);
-                        parserConditions(this, v[key]);
+                        existsQuery.call(this, key, value)
                     })
                 } else {
                     builder = builder.whereNotExists(function() {
-                        this.select('*').from(key);
-                        parserConditions(this, v[key]);
+                        existsQuery.call(this, key, value)
                     })
                 }
             } else {
@@ -118,7 +128,14 @@ function join(builder, method, value) {
         throw errors.ErrJoinShouldBeJSONObject;
     }
     _.forEach(value, (v, k) => {
-        builder = method.call(builder, k, v);
+        if (_.has(v, 'subquery')) {
+            builder = method.call(builder, function() {
+                this.from(k)
+                builderQuery(this, v.subquery).as(v.as)
+            }, v.on)
+        } else {
+            builder = method.call(builder, k, v);
+        }
     })
     return builder;
 }
@@ -174,7 +191,14 @@ const keywords = {
         return builder.orderBy.apply(builder, value);
     },
     'count': (builder, value) => {
-        return builder.count(value);
+        if (_.isArray(value))  {
+            _.each(value, function(col) {
+                builder = builder.count(col)
+            })
+        } else {
+            builder = builder.count(value)
+        }
+        return builder;
     },
     'min': (builder, value) => {
         return builder.min(value);

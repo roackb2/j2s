@@ -61,7 +61,15 @@ function setupController(bookshelf, controller, path, opts, forbids) {
                 throw errors.ErrExtraShouldBeList;
             }
             _.each(query.add_clause, function(prop) {
-                opts.model[prop](ctx, query);
+                if (_.isString(prop)) {
+                    opts.model[prop](ctx, query);
+                } else if (_.isPlainObject(prop)) {
+                    _.forIn(prop, function(value, key) {
+                        opts.model[key](ctx, query, value);
+                    })
+                } else {
+                    throw errors.ErrAddClauseElementShouldBeStringOrObject;
+                }
             })
         }
         if (_.has(query, 'populate')) {
