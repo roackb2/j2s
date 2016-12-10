@@ -94,6 +94,10 @@ const Account = bookshelf.Model.extend({
 const Photo = bookshelf.Model.extend({
     tableName: 'photo',
     hasTimestamps: true,
+
+    uploader: function() {
+        return this.belongsTo(User);
+    }
 })
 
 const Book = bookshelf.Model.extend({
@@ -164,6 +168,7 @@ const options = {
         U: J2S.DENY,
         D: J2S.DENY
     },                              // optional
+    forbids: ['join', 'cross_join'] // optional
     middlewares: [async function (ctx, next) {
         // add an authentication middleware
         // assume that request header contains user ID and a given access token,
@@ -501,6 +506,24 @@ Available top level keys are:
     ```
     which will join the "photo" table on the condition that "photo_id" column of the "user" table with value equal to the "id" column of the "photo" table. (the example assumes the querying table is the "user" table)
 
+    Joins could also contains subqueries, which might looks like:
+    ```json
+    {
+        "photo": {
+            "subquery": {
+                "select": ["photo.uploader_id"],
+                "group_by": "photo.uploader_id",
+                "count": "photo.id AS upload_count"
+            },
+            "as": "uploads",
+            "on": {
+                "uploads.uploader_id": "user.id"
+            }
+        }
+    }
+    ```
+    Above example assumes that every Photo has one or no user as the uploader, and the query could have `select: ["upload_count"]` to get values that how many photos each user uploads.
+
 8. `group_by`: group by a column, need to be used along with aggregation methods.
     value example:
     ```json
@@ -511,6 +534,11 @@ Available top level keys are:
     value example:
     ```json
     "id"
+    ```
+
+    `count` could also be a JSON Array to apply multiple count clauses as following:
+    ```json
+    ["id", "gender"]
     ```
 
 10. `min`: get minimum value on a column.
