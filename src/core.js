@@ -26,6 +26,22 @@ const whereSuffixes = {
     'ne': (builder, col, value) => {
         return builder.whereNot(col, value);
     },
+    'like': (builder, col, value) => {
+        if (_.isString(value)) {
+            value = [].concat(value);
+        }
+        if (_.isArray(value)) {
+            builder = builder.where(function() {
+                let qb = this;
+                _.each(value, function(str) {
+                    qb.orWhere(col, 'like', util.format('%%%s%%%', str));
+                })
+            })
+            return builder;
+        } else {
+            throw errors.ErrLikeShouldBeStringOrList;
+        }
+    },
     'between': (builder, col, value) => {
         if (!_.isArray(value)) {
             throw errors.ErrBetweenSuffixValueShouldBeList;

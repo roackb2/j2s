@@ -571,14 +571,15 @@ Available suffixes includes:
 3. `lt`: less than
 4. `lte`: less than or equal to
 5. `ne`: not equal to
-6. `between`: between two values
-7. `not_between`: not between two values
-8. `in`: in a list of values
-9. `not_in`: not in a list of values
-10. `null`: set to true to find records with null values on that column, or false to find  not null ones.
-11. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ANDed together, and these conditions are ORed with conditions with same level as the `or` keyword.
-12. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
-13. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
+6. `like`: like a string
+7. `between`: between two values
+8. `not_between`: not between two values
+9. `in`: in a list of values
+10. `not_in`: not in a list of values
+11. `null`: set to true to find records with null values on that column, or false to find  not null ones.
+12. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ANDed together, and these conditions are ORed with conditions with same level as the `or` keyword.
+13. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
+14. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
 
 
 ### Advanced Examples

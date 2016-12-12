@@ -53,4 +53,5 @@ module.exports = {
         return new J2SError(100123, util.format('keyword `%s` is forbidden', keyword));
     },
     ErrAddClauseElementShouldBeStringOrObject: new J2SError(100124, 'value of element in `add_clause` should be either JSON object or string'),
+    ErrLikeShouldBeStringOrList: new J2SError(100125, 'value of `like` should be either JSON array or string'),
 }
