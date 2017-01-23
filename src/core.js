@@ -284,7 +284,7 @@ function check(ctx, identityCB, adminCB, instances, rule) {
                 let instance = instances[i];
                 if (_.isPlainObject(rule)) {
                     for (var key in rule) {
-                        if (identity[key] != instance[rule[key]]) {
+                        if (identity[key] != instance.get(rule[key])) {
                             return Promise.resolve(false);
                         }
                     }
