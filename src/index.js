@@ -167,7 +167,12 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!_.isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        return core.query(opts.model, query).fetchAll().then(function(instances) {
+        return core.query(opts.model, query).count().then(function(count) {
+            if (count > 1) {
+                throw errors.ErrDeletionNotAllowed;
+            }
+            return core.query(opts.model, query).fetchAll();
+        }).then(function(instances) {
             return Promise.all([
                 instances,
                 core.check(ctx, opts.identity.D, opts.admin.D, instances, opts.access.D)
@@ -178,7 +183,10 @@ function setupController(bookshelf, controller, path, opts, forbids) {
             }
             return instances.invokeThen('destroy')
         }).then(function(res) {
-            ctx.body = {data: res}
+            if (res.length == 0) {
+                throw errors.ErrResourceNotFound;
+            }
+            ctx.body = {success: true};
         })
     };
 
