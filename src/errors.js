@@ -56,4 +56,7 @@ module.exports = {
     ErrLikeShouldBeStringOrList: new J2SError(100125, 'value of `like` should be either JSON array or string'),
     ErrDeletionNotAllowed: new J2SError(100126, 'deletion for more than one instance is not allowed'),
     ErrResourceNotFound: new J2SError(100127, 'resource not found'),
+    FnErrDatabaseOperationError: function(msg) {
+        return new J2SError(100128, util.format('DB operation error: %s', msg));
+    },
 }

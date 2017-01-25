@@ -24,6 +24,14 @@ function chainFuncs (ctx, instances, funcs) {
 }
 
 function setupController(bookshelf, controller, path, opts, forbids) {
+    let errHandler = function(err) {
+        if (err instanceof errors.J2SError) {
+            throw err;
+        } else {
+            throw errors.FnErrDatabaseOperationError(err.message);
+        }
+    }
+
     let getOne = function (ctx, next) {
         return opts.model.where('id', ctx.params.id).fetchAll().then(function (instances) {
             return Promise.all([
@@ -39,7 +47,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
                 instance = instance[0]
             }
             ctx.body = {data: instance}
-        })
+        }).catch(errHandler);
     };
 
     let get = function (ctx, next) {
@@ -116,7 +124,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
             }
         }).then(function (instances) {
             ctx.body = {data: instances}
-        })
+        }).catch(errHandler);
     };
 
     let post = function (ctx, next) {
@@ -135,7 +143,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
             return instances.invokeThen('save');
         }).then(function(res) {
             ctx.body = {data: res}
-        })
+        }).catch(errHandler);
     };
 
     let put = function (ctx, next) {
@@ -159,7 +167,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
             return instances.invokeThen('save', data, {method: 'update', patch: true});
         }).then(function(res) {
             ctx.body = {data: res}
-        })
+        }).catch(errHandler);
     };
 
     let del = function (ctx, next) {
@@ -187,8 +195,9 @@ function setupController(bookshelf, controller, path, opts, forbids) {
                 throw errors.ErrResourceNotFound;
             }
             ctx.body = {success: true};
-        })
+        }).catch(errHandler);
     };
+
 
     controller.get.apply(controller, [path + '/:id'].concat(opts.middlewares.R).concat([getOne]));
     controller.get.apply(controller, [path].concat(opts.middlewares.R).concat([get]));
