@@ -10,98 +10,175 @@ const Promise = require('bluebird');
 const ALLOW = 'allow';
 const DENY = 'deny';
 
-const whereSuffixes = {
-    'gt': (builder, col, value) => {
-        return builder.where(col, '>', value);
+const methodMap = {
+    exists: {
+        and: 'whereExists',
+        or: 'orWhereExists'
     },
-    'gte': (builder, col, value) => {
-        return builder.where(col, '>=', value);
+    not_exists: {
+        and: 'whereNotExists',
+        or: 'orWhereNotExists'
     },
-    'lt': (builder, col, value) => {
-        return builder.where(col, '<', value);
+    where: {
+        and: 'where',
+        or: 'orWhere'
     },
-    'lte': (builder, col, value) => {
-        return builder.where(col, '<=', value);
+    where_not: {
+        and: 'whereNot',
+        or: 'orWhereNot'
     },
-    'ne': (builder, col, value) => {
-        return builder.whereNot(col, value);
+    between: {
+        and: 'whereBetween',
+        or: 'orWhereBetween'
     },
-    'like': (builder, col, value) => {
-        if (_.isString(value)) {
-            value = [].concat(value);
-        }
-        if (_.isArray(value)) {
-            builder = builder.where(function() {
-                let qb = this;
-                _.each(value, function(str) {
-                    qb.orWhere(col, 'like', util.format('%%%s%%%', str));
-                })
+    not_between: {
+        and: 'whereNotBetween',
+        or: 'orWhereNotBetween'
+    },
+    in: {
+        and: 'whereIn',
+        or: 'orWhereIn'
+    },
+    not_in: {
+        and: 'whereNotIn',
+        or: 'orWhereNotIn'
+    },
+    where_null: {
+        and: 'whereNull',
+        or: 'orWhereNull'
+    },
+    where_not_null: {
+        and: 'whereNotNull',
+        or: 'orWhereNotNull'
+    },
+    and: 'where',
+    or: 'orWhere'
+}
+
+let addLikeClause = function (knex, builder, col, value, likeOp, logicOp) {
+    if (_.isString(value)) {
+        value = [].concat(value);
+    }
+    if (_.isArray(value)) {
+        builder = builder[methodMap.where[logicOp]](function() {
+            let qb = this;
+            _.each(value, function(str) {
+                let preparation = util.format('%s %s ?', col, likeOp);
+                if (likeOp.indexOf('like') !== -1) {
+                    str = util.format('%%%s%%', str)
+                }
+                qb.orWhere(knex.raw(preparation, [str]));
             })
-            return builder;
-        } else {
-            throw errors.ErrLikeShouldBeStringOrList;
-        }
+        })
+        return builder;
+    } else {
+        throw errors.ErrLikeShouldBeStringOrList;
+    }
+}
+
+const whereSuffixes = {
+    'gt': (knex, builder, col, value, op) => {
+        return builder[methodMap.where[op]](col, '>', value);
     },
-    'between': (builder, col, value) => {
+    'gte': (knex, builder, col, value, op) => {
+        return builder[methodMap.where[op]](col, '>=', value);
+    },
+    'lt': (knex, builder, col, value, op) => {
+        return builder[methodMap.where[op]](col, '<', value);
+    },
+    'lte': (knex, builder, col, value, op) => {
+        return builder[methodMap.where[op]](col, '<=', value);
+    },
+    'ne': (knex, builder, col, value, op) => {
+        return builder[methodMap.where_not[op]](col, value);
+    },
+    'like': (knex, builder, col, value, op) => {
+        return addLikeClause(knex, builder, col, value, 'like', op);
+    },
+    'not_like': (knex, builder, col, value, op) => {
+        return addLikeClause(knex, builder, col, value, 'not like', op);
+    },
+    'ilike': (knex, builder, col, value, op) => {
+        return addLikeClause(knex, builder, col, value, 'ilike', op);
+    },
+    'not_ilike': (knex, builder, col, value, op) => {
+        return addLikeClause(knex, builder, col, value, 'not ilike', op);
+    },
+    'reg_like': (knex, builder, col, value, op) => {
+        return addLikeClause(knex, builder, col, value, '~', op);
+    },
+    'reg_not_like': (knex, builder, col, value, op) => {
+        return addLikeClause(knex, builder, col, value, '!~', op);
+    },
+    'reg_ilike': (knex, builder, col, value, op) => {
+        return addLikeClause(knex, builder, col, value, '~*', op);
+    },
+    'reg_not_ilike': (knex, builder, col, value, op) => {
+        return addLikeClause(knex, builder, col, value, '!~*', op);
+    },
+    'between': (knex, builder, col, value, op) => {
         if (!_.isArray(value)) {
             throw errors.ErrBetweenSuffixValueShouldBeList;
         }
         if (value.length != 2) {
             throw errors.ErrBetweenSuffixValueShouldBeLengthTwo;
         }
-        return builder.whereBetween(col, value);
+        return builder[methodMap.between[op]](col, value);
     },
-    'not_between': (builder, col, value) => {
+    'not_between': (knex, builder, col, value, op) => {
         if (!_.isArray(value)) {
             throw errors.ErrNotBetweenSuffixShouldBeList;
         }
         if (value.length != 2) {
             throw errors.ErrNotBetweenSuffixShouldBeLengthTwo;
         }
-        return builder.whereNotBetween(col, value);
+        return builder[methodMap.not_between[op]](col, value);
     },
-    'in': (builder, col, value) => {
+    'in': (knex, builder, col, value, op) => {
         if (!_.isArray(value)) {
             throw errors.ErrInSuffixShouldBeList;
         }
-        return builder.whereIn(col, value);
+        return builder[methodMap.in[op]](col, value);
     },
-    'not_in': (builder, col, value) => {
+    'not_in': (knex, builder, col, value, op) => {
         if (!_.isArray(value)) {
             throw erros.ErrNotInSuffixShouldBeList;
         }
-        return builder.whereNotIn(col, value);
+        return builder[methodMap.not_in[op]](col, value);
     },
-    'null': (builder, col, value) => {
+    'null': (knex, builder, col, value, op) => {
         if (!_.isBoolean(value)) {
             throw errors.ErrNullSuffixShouldBeBoolean;
         }
         if (value) {
-            return builder.whereNull(col);
+            return builder[methodMap.where_null[op]](col);
         } else {
-            return builder.whereNotNull(col);
+            return builder[methodMap.where_not_null[op]](col);
         }
     },
 }
 
-function existsQuery(table, value) {
+function existsQuery(knex, table, value) {
     this.from(table);
     if (!_.has(value, 'where')) {
         this.select('*');
-        parserConditions(this, value);
+        parseConditions(knex, this, value);
     } else {
-        builderQuery(this, value);
+        builderQuery(knex, this, value);
     }
 }
 
 // accepts knex query builder and conditions object, returns the builder
-function parserConditions(builder, conds) {
+function parseConditions(knex, builder, conds, op) {
+    if (!op) {
+        op = 'and';
+    }
     _.forIn(conds, (v, k) => {
         let parts = k.split('__');
         if (parts.length == 1) {
-            if (k == 'or') {
-                builder = builder.orWhere(function() {
-                    parserConditions(this, v);
+            if (k == 'or' || k == 'and') {
+                builder = builder[methodMap[op]](function() {
+                    parseConditions(knex, this, v, k)
                 })
             } else if (k == 'exists' || k == 'not_exists') {
                 let keys = _.keys(v);
@@ -110,22 +187,18 @@ function parserConditions(builder, conds) {
                 }
                 let key = keys[0];
                 let value = v[key];
-                if (k == 'exists') {
-                    builder = builder.whereExists(function() {
-                        existsQuery.call(this, key, value)
-                    })
-                } else {
-                    builder = builder.whereNotExists(function() {
-                        existsQuery.call(this, key, value)
-                    })
-                }
+                builder = builder[methodMap[k][op]](function() {
+                    existsQuery.call(this, knex, key, value)
+                })
             } else {
+                let preparation = null;
                 if (_.isString(v) && v.split('.').length > 1) {
                     // value is an identifier
-                    builder = builder.whereRaw('?? = ??', [k, v]);
+                    preparation = knex.raw('?? = ??', [k, v])
                 } else {
-                    builder = builder.whereRaw('?? = ?', [k, v]);
+                    preparation = knex.raw('?? = ?', [k, v])
                 }
+                builder = builder[methodMap.where[op]](preparation)
             }
         } else if (parts.length == 2) {
             let col = parts[0];
@@ -133,7 +206,7 @@ function parserConditions(builder, conds) {
             if (!_.has(whereSuffixes, suffix)) {
                 throw errors.FnErrSuffixNotImplemented(suffix);
             }
-            builder = whereSuffixes[suffix](builder, col, v);
+            builder = whereSuffixes[suffix](knex, builder, col, v, op);
         }
     })
     return builder;
@@ -157,46 +230,46 @@ function join(builder, method, value) {
 }
 
 const keywords = {
-    'where': (builder, value) => {
-        return parserConditions(builder, value);
+    'where': (knex, builder, value) => {
+        return parseConditions(knex, builder, value, 'and');
     },
-    'join': (builder, value) => {
+    'join': (knex, builder, value) => {
         return join(builder, builder.join, value);
     },
-    'inner_join': (builder, value) => {
+    'inner_join': (knex, builder, value) => {
         return join(builder, builder.innerJoin, value);
     },
-    'left_join': (builder, value) => {
+    'left_join': (knex, builder, value) => {
         return join(builder, builder.leftJoin, value);
     },
-    'left_outer_join': (builder, value) => {
+    'left_outer_join': (knex, builder, value) => {
         return join(builder, builder.leftOuterJoin, value);
     },
-    'right_join': (builder, value) => {
+    'right_join': (knex, builder, value) => {
         return join(builder, builder.rightJoin, value);
     },
-    'right_outer_join': (builder, value) => {
+    'right_outer_join': (knex, builder, value) => {
         return join(builder, builder.rightOuterJoin, value);
     },
-    'full_outer_join': (builder, value) => {
+    'full_outer_join': (knex, builder, value) => {
         return join(builder, builder.fullOuterJoin, value);
     },
-    'cross_join': (builder, value) => {
+    'cross_join': (knex, builder, value) => {
         return builder.crossJoin(value)
     },
-    'select': (builder, value) => {
+    'select': (knex, builder, value) => {
         return builder.select.apply(builder, value);
     },
-    'limit': (builder, value) => {
+    'limit': (knex, builder, value) => {
         return builder.limit(value);
     },
-    'offset': (builder, value) => {
+    'offset': (knex, builder, value) => {
         return builder.offset(value);
     },
-    'group_by': (builder, value) => {
+    'group_by': (knex, builder, value) => {
         return builder.groupBy(value);
     },
-    'order_by': (builder, value) => {
+    'order_by': (knex, builder, value) => {
         if (!_.isArray(value)) {
             value = [value];
             throw errors.ErrOrderByShouldBeList;
@@ -206,7 +279,7 @@ const keywords = {
         }
         return builder.orderBy.apply(builder, value);
     },
-    'count': (builder, value) => {
+    'count': (knex, builder, value) => {
         if (_.isArray(value))  {
             _.each(value, function(col) {
                 builder = builder.count(col)
@@ -216,47 +289,51 @@ const keywords = {
         }
         return builder;
     },
-    'min': (builder, value) => {
+    'min': (knex, builder, value) => {
         return builder.min(value);
     },
-    'max': (builder, value) => {
+    'max': (knex, builder, value) => {
         return builder.max(value);
     },
-    'avg': (builder, value) => {
+    'avg': (knex, builder, value) => {
         return builder.avg(value);
     },
-    'sum': (builder, value) => {
+    'sum': (knex, builder, value) => {
         return builder.sum(value);
     },
-    'populate': (builder, value) => {
+    'populate': (knex, builder, value) => {
         // noop
         return builder;
     },
-    'add_attr': (builder, value) => {
+    'add_attr': (knex, builder, value) => {
         // noop
         return builder;
     },
-    'add_clause': (builder, value) => {
+    'add_clause': (knex, builder, value) => {
         // noop
         return builder;
     }
 }
 
 // accepts a knex query builder
-function builderQuery(builder, clauses) {
+function builderQuery(knex, builder, clauses) {
     _.forIn(clauses, (value, key) => {
         if (!_.has(keywords, key)) {
             throw errors.FnErrKeywordNotImplemented(key);
         }
-        builder = keywords[key](builder, value)
+        builder = keywords[key](knex, builder, value)
     })
+    logger.debug('builder query statement: %s', builder.toString())
     return builder
 }
 
 // accepts a bookshelf model
-function query(model, clauses) {
-    let m = model.query(function(builder) {
-        builder = builderQuery(builder, clauses)
+function query(bookshelf, model, clauses) {
+    let collection = bookshelf.Collection.extend({
+        model: model
+    })
+    let m = collection.query(function(builder) {
+        builder = builderQuery(bookshelf.knex, builder, clauses)
         logger.debug('query statement: %s', builder.toString())
     })
     return m

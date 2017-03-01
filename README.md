@@ -571,16 +571,23 @@ Available suffixes includes:
 3. `lt`: less than
 4. `lte`: less than or equal to
 5. `ne`: not equal to
-6. `like`: like a string
-7. `between`: between two values
-8. `not_between`: not between two values
-9. `in`: in a list of values
-10. `not_in`: not in a list of values
-11. `null`: set to true to find records with null values on that column, or false to find  not null ones.
-12. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ANDed together, and these conditions are ORed with conditions with same level as the `or` keyword.
+6. `between`: between two values
+7. `not_between`: not between two values
+8. `in`: in a list of values
+9. `not_in`: not in a list of values
+10. `null`: set to true to find records with null values on that column, or false to find  not null ones.
+11. `and`: an AND operation, this special keyword allows recursive conditions parsing, all conditions inside an `and` JSON object are ANDed together.
+12. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ORed together.
 13. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
 14. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
-
+15. `like`: like a string, case sensitive. The value is automatically wrapped inside a pair of percentage symbols, to achive substring match. For example, `{like: 'apple'}` would be equivalent to `like '%apple%'` SQL statement.
+16. `not_like`: not like a string, case sensitive. The value is also automatically wrapped inside a pair of percentage symbols.
+17. `ilike`: like a string, case insensitive (PostgreSQL only).
+18. `not_ilike`: not like a string, case insensitive (PostgreSQL only).
+19. `reg_like`: a POSIX regex match statement, case sensitive (PostgreSQL only).
+20. `reg_not_like`: a POSIX regex not match statement, case sensitive (PostgreSQL only).
+21. `reg_ilike`: a POSIX regex match statement, case insensitive (PostgreSQL only).
+22. `reg_not_ilike`: a POSIX regex not match statement, case insensitive (PostgreSQL only).
 
 ### Advanced Examples
 

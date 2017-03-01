@@ -24,6 +24,7 @@ function chainFuncs (ctx, instances, funcs) {
 }
 
 function setupController(bookshelf, controller, path, opts, forbids) {
+    let knex = bookshelf.knex;
     let errHandler = function(err) {
         if (err instanceof errors.J2SError) {
             throw err;
@@ -93,7 +94,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
                     let key = keys[0]
                     let res = {}
                     res[key] = function(builder) {
-                        core.builderQuery(builder, population[key])
+                        core.builderQuery(knex, builder, population[key])
                     }
                     return res;
                 } else if (_.isString(population)){
@@ -102,11 +103,11 @@ function setupController(bookshelf, controller, path, opts, forbids) {
                     throw errors.ErrPopulateElementShouldBeStringOrObject;
                 }
             })
-            queryPromise = core.query(opts.model, query).fetchAll({
+            queryPromise = core.query(bookshelf, opts.model, query).fetch({
                 withRelated: populate
             })
         } else {
-            queryPromise = core.query(opts.model, query).fetchAll()
+            queryPromise = core.query(bookshelf, opts.model, query).fetch()
         }
         return queryPromise.then(function(instances) {
             return Promise.all([
@@ -155,7 +156,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!_.isPlainObject(data)) {
             throw errors.ErrDataShouldBeJsonObject;
         }
-        return core.query(opts.model, query).fetchAll().then(function(instances) {
+        return core.query(bookshelf, opts.model, query).fetch().then(function(instances) {
             return Promise.all([
                 instances,
                 core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U)
@@ -175,11 +176,11 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!_.isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        return core.query(opts.model, query).count().then(function(count) {
+        return core.query(bookshelf, opts.model, query).count().then(function(count) {
             if (count > 1) {
                 throw errors.ErrDeletionNotAllowed;
             }
-            return core.query(opts.model, query).fetchAll();
+            return core.query(bookshelf, opts.model, query).fetch();
         }).then(function(instances) {
             return Promise.all([
                 instances,
