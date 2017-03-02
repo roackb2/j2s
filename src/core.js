@@ -7,9 +7,13 @@ const logger = require('./logging');
 const errors = require('./errors');
 const Promise = require('bluebird');
 
+// Constants to denote access control rules
 const ALLOW = 'allow';
 const DENY = 'deny';
 
+// For different keywords that we defined with `and` or `or` operations,
+// we should use different bookshelf model methods,
+// this mappings provides simpler way to decide what method name to use.
 const methodMap = {
     exists: {
         and: 'whereExists',
@@ -51,10 +55,12 @@ const methodMap = {
         and: 'whereNotNull',
         or: 'orWhereNotNull'
     },
-    and: 'where',
-    or: 'orWhere'
+    and: 'where', // for the `and` keyword, conditions should be ANDed together
+    or: 'orWhere' // for the `or` keyword, conditions should be ORed together
 }
 
+// There are many string matching operations in PostgreSQL, here we chain the bookshelf instance
+// with like operations according to the column, value, like operations and logical operations.
 let addLikeClause = function (knex, builder, col, value, likeOp, logicOp) {
     if (_.isString(value)) {
         value = [].concat(value);
@@ -76,6 +82,8 @@ let addLikeClause = function (knex, builder, col, value, likeOp, logicOp) {
     }
 }
 
+// j2s provides different suffixes that could be appended to columns,
+// to specify what kind of comparison operators to use.
 const whereSuffixes = {
     'gt': (knex, builder, col, value, op) => {
         return builder[methodMap.where[op]](col, '>', value);
@@ -158,6 +166,8 @@ const whereSuffixes = {
     },
 }
 
+// For the SQL EXISTS query, recursively parse the query conditions
+// to form a subquery.
 function existsQuery(knex, table, value) {
     this.from(table);
     if (!_.has(value, 'where')) {
@@ -170,17 +180,22 @@ function existsQuery(knex, table, value) {
 
 // accepts knex query builder and conditions object, returns the builder
 function parseConditions(knex, builder, conds, op) {
+    // default logical operation is `and`
     if (!op) {
         op = 'and';
     }
+    // loop through key value pairs of the conditions object
     _.forIn(conds, (v, k) => {
-        let parts = k.split('__');
+        let parts = k.split('__'); // suffix is appended to column names with double underscores
         if (parts.length == 1) {
             if (k == 'or' || k == 'and') {
+                // if key is the keyword `and` or `or`, recursively parse the value,
+                // with according logical operation
                 builder = builder[methodMap[op]](function() {
                     parseConditions(knex, this, v, k)
                 })
             } else if (k == 'exists' || k == 'not_exists') {
+                // handle EXISTS queries, recursively parse them
                 let keys = _.keys(v);
                 if (keys.length != 1) {
                     throw errors.ErrExistsObjectShouldHaveExactlyOneKey;
@@ -191,6 +206,7 @@ function parseConditions(knex, builder, conds, op) {
                     existsQuery.call(this, knex, key, value)
                 })
             } else {
+                // for simple 'column equals to valu' scenario, simply add a raw preparation
                 let preparation = null;
                 if (_.isString(v) && v.split('.').length > 1) {
                     // value is an identifier
@@ -201,6 +217,8 @@ function parseConditions(knex, builder, conds, op) {
                 builder = builder[methodMap.where[op]](preparation)
             }
         } else if (parts.length == 2) {
+            // if column name is followed by suffix,
+            // call the suffix callback and handle the query
             let col = parts[0];
             let suffix = parts[1];
             if (!_.has(whereSuffixes, suffix)) {
@@ -212,6 +230,8 @@ function parseConditions(knex, builder, conds, op) {
     return builder;
 }
 
+// handle JOIN operation, if there's a subquery,
+// recursively parse it
 function join(builder, method, value) {
     if (!_.isPlainObject(value)) {
         throw errors.ErrJoinShouldBeJSONObject;
@@ -229,6 +249,7 @@ function join(builder, method, value) {
     return builder;
 }
 
+// j2s provided keywords that maps to SQL operations
 const keywords = {
     'where': (knex, builder, value) => {
         return parseConditions(knex, builder, value, 'and');
@@ -315,7 +336,8 @@ const keywords = {
     }
 }
 
-// accepts a knex query builder
+// accepts a knex query builder, parse the query clauses and chain the methods,
+// return the builder
 function builderQuery(knex, builder, clauses) {
     _.forIn(clauses, (value, key) => {
         if (!_.has(keywords, key)) {
@@ -327,7 +349,8 @@ function builderQuery(knex, builder, clauses) {
     return builder
 }
 
-// accepts a bookshelf model
+// accepts a bookshelf model, parse the query clauses and chain the methods,
+// return a bookshelf collection
 function query(bookshelf, model, clauses) {
     let collection = bookshelf.Collection.extend({
         model: model
@@ -339,6 +362,7 @@ function query(bookshelf, model, clauses) {
     return m
 }
 
+// check access control rules, return a Promise that resolves to true or false
 function check(ctx, identityCB, adminCB, instances, rule) {
     if (!identityCB) {
         return Promise.resolve(true)
