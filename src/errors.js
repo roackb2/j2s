@@ -36,7 +36,7 @@ module.exports = {
     ErrOrderByShouldBeList: new J2SError(100109, 'value of `order_by` should be list'),
     ErrOrderByLengthShouldBeTwo: new J2SError(100110, 'value of `order_by` could only be of length 1 or 2'),
     FnErrKeywordNotImplemented: function(keyword) {
-        return new J2SError(100111, util.format('keyword `%s` is not implemented', key));
+        return new J2SError(100111, util.format('keyword `%s` is not implemented', keyword));
     },
     FnErrUnknowRuleType: function(rule) {
         return new J2SError(100112, util.format('unknown rule type: %s', rule));

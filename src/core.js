@@ -206,13 +206,15 @@ function parseConditions(knex, builder, conds, op) {
                     existsQuery.call(this, knex, key, value)
                 })
             } else {
-                // for simple 'column equals to valu' scenario, simply add a raw preparation
-                let preparation = null;
-                if (_.isString(v) && v.split('.').length > 1) {
-                    // value is an identifier
-                    preparation = knex.raw('?? = ??', [k, v])
-                } else {
-                    preparation = knex.raw('?? = ?', [k, v])
+                // for simple 'column equals to value' scenario, simply add a raw preparation
+                let preparation = knex.raw('?? = ?', [k, v]);
+                if (_.isString(v)) {
+                    let words = v.split('.');
+                    let reg = /^([A-Za-z]|[0-9]|_|\$)+$/
+                    if (words.length == 2 && words[0].match(reg) && words[1].match(reg)) {
+                        // value is an identifier
+                        preparation = knex.raw('?? = ??', [k, v])
+                    }
                 }
                 builder = builder[methodMap.where[op]](preparation)
             }
@@ -251,46 +253,49 @@ function join(builder, method, value) {
 
 // j2s provided keywords that maps to SQL operations
 const keywords = {
-    'where': (knex, builder, value) => {
+    'where': (knex, builder, value, key) => {
+        if (key == 'or') {
+            return parseConditions(knex, builder, value, 'or');
+        }
         return parseConditions(knex, builder, value, 'and');
     },
-    'join': (knex, builder, value) => {
+    'join': (knex, builder, value, key) => {
         return join(builder, builder.join, value);
     },
-    'inner_join': (knex, builder, value) => {
+    'inner_join': (knex, builder, value, key) => {
         return join(builder, builder.innerJoin, value);
     },
-    'left_join': (knex, builder, value) => {
+    'left_join': (knex, builder, value, key) => {
         return join(builder, builder.leftJoin, value);
     },
-    'left_outer_join': (knex, builder, value) => {
+    'left_outer_join': (knex, builder, value, key) => {
         return join(builder, builder.leftOuterJoin, value);
     },
-    'right_join': (knex, builder, value) => {
+    'right_join': (knex, builder, value, key) => {
         return join(builder, builder.rightJoin, value);
     },
-    'right_outer_join': (knex, builder, value) => {
+    'right_outer_join': (knex, builder, value, key) => {
         return join(builder, builder.rightOuterJoin, value);
     },
-    'full_outer_join': (knex, builder, value) => {
+    'full_outer_join': (knex, builder, value, key) => {
         return join(builder, builder.fullOuterJoin, value);
     },
-    'cross_join': (knex, builder, value) => {
+    'cross_join': (knex, builder, value, key) => {
         return builder.crossJoin(value)
     },
-    'select': (knex, builder, value) => {
+    'select': (knex, builder, value, key) => {
         return builder.select.apply(builder, value);
     },
-    'limit': (knex, builder, value) => {
+    'limit': (knex, builder, value, key) => {
         return builder.limit(value);
     },
-    'offset': (knex, builder, value) => {
+    'offset': (knex, builder, value, key) => {
         return builder.offset(value);
     },
-    'group_by': (knex, builder, value) => {
+    'group_by': (knex, builder, value, key) => {
         return builder.groupBy(value);
     },
-    'order_by': (knex, builder, value) => {
+    'order_by': (knex, builder, value, key) => {
         if (!_.isArray(value)) {
             value = [value];
             throw errors.ErrOrderByShouldBeList;
@@ -300,7 +305,7 @@ const keywords = {
         }
         return builder.orderBy.apply(builder, value);
     },
-    'count': (knex, builder, value) => {
+    'count': (knex, builder, value, key) => {
         if (_.isArray(value))  {
             _.each(value, function(col) {
                 builder = builder.count(col)
@@ -310,27 +315,27 @@ const keywords = {
         }
         return builder;
     },
-    'min': (knex, builder, value) => {
+    'min': (knex, builder, value, key) => {
         return builder.min(value);
     },
-    'max': (knex, builder, value) => {
+    'max': (knex, builder, value, key) => {
         return builder.max(value);
     },
-    'avg': (knex, builder, value) => {
+    'avg': (knex, builder, value, key) => {
         return builder.avg(value);
     },
-    'sum': (knex, builder, value) => {
+    'sum': (knex, builder, value, key) => {
         return builder.sum(value);
     },
-    'populate': (knex, builder, value) => {
+    'populate': (knex, builder, value, key) => {
         // noop
         return builder;
     },
-    'add_attr': (knex, builder, value) => {
+    'add_attr': (knex, builder, value, key) => {
         // noop
         return builder;
     },
-    'add_clause': (knex, builder, value) => {
+    'add_clause': (knex, builder, value, key) => {
         // noop
         return builder;
     }
@@ -343,7 +348,7 @@ function builderQuery(knex, builder, clauses) {
         if (!_.has(keywords, key)) {
             throw errors.FnErrKeywordNotImplemented(key);
         }
-        builder = keywords[key](knex, builder, value)
+        builder = keywords[key](knex, builder, value, key)
     })
     logger.debug('builder query statement: %s', builder.toString())
     return builder
