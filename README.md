@@ -1,12 +1,13 @@
 # j2s
 
-JSON to SQL, build RESTful API server that accepts JSON describing SQL query statements, and do CRUD accordingly, with configurable access control & pluggable middlewares.
+JSON to SQL, build RESTful API server on the fly, which accepts JSON describing SQL query statements, and do CRUD accordingly, with configurable access control & pluggable middlewares.
 
 * Tired of creating API every time that front-end requires new feature?
 * Your front-end development always are lagged due to backend API not yet ready?
+* API now immediately ready after you defines your model(and tables), no data query or fetching logic implementation needed!
 
 j2s provides extreme flexibility to let front-end compose powerful query statements via JSON,
-and let backend do CRUD accordingly.
+and let backend do CRUD accordingly, without adding ANY code to your backend (except for routing paths configs & corresponding ORM model definitions).
 
 j2s relies on [Bookshelf.js](http://bookshelfjs.org/) for data modeling, and maps
 url routes to models according to user configured options, and provides RESTful API
