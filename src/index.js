@@ -23,6 +23,27 @@ function chainFuncs (ctx, instances, funcs) {
     }
 }
 
+function chainClauses (model, clauses, ctx, query) {
+    if (clauses.length > 0) {
+        let clause = clauses.shift();
+        if (_.isString(clause)) {
+            return model[clause](ctx, query).then(function(modifiedQuery) {
+                return chainClauses(model, clauses, ctx, modifiedQuery);
+            })
+        } else if (_.isPlainObject(prop)) {
+            _.forIn(prop, function(value, key) {
+                return model[clause](ctx, query, value).then(function(modifiedQuery) {
+                    return chainClauses(model, clauses, ctx, modifiedQuery)
+                })
+            })
+        } else {
+            throw errors.ErrAddClauseElementShouldBeStringOrObject;
+        }
+    } else {
+        return query;
+    }
+}
+
 function setupController(bookshelf, controller, path, opts, forbids) {
     let knex = bookshelf.knex;
     let errHandler = function(err) {
@@ -59,28 +80,12 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!_.isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        let queryPromise = []
         _.each(_.keys(query), function(key) {
             if (_.includes(forbids, key)) {
                 throw errors.FnErrKeyForbidden(key);
             }
         })
-        if (_.has(query, 'add_clause')) {
-            if (!_.isArray(query.add_clause)) {
-                throw errors.ErrExtraShouldBeList;
-            }
-            _.each(query.add_clause, function(prop) {
-                if (_.isString(prop)) {
-                    opts.model[prop](ctx, query);
-                } else if (_.isPlainObject(prop)) {
-                    _.forIn(prop, function(value, key) {
-                        opts.model[key](ctx, query, value);
-                    })
-                } else {
-                    throw errors.ErrAddClauseElementShouldBeStringOrObject;
-                }
-            })
-        }
+        let fetchOpts = {};
         if (_.has(query, 'populate')) {
             if (!_.isArray(query.populate)) {
                 throw errors.ErrPopulateShouldBeList;
@@ -103,13 +108,21 @@ function setupController(bookshelf, controller, path, opts, forbids) {
                     throw errors.ErrPopulateElementShouldBeStringOrObject;
                 }
             })
-            queryPromise = core.query(bookshelf, opts.model, query).fetch({
-                withRelated: populate
+            fetchOpts = {withRelated: populate}
+        }
+        let finalPromise = null;
+        if (_.has(query, 'add_clause')) {
+            let clauses = query.add_clause
+            if (!_.isArray(clauses)) {
+                throw errors.ErrExtraShouldBeList;
+            }
+            finalPromise = chainClauses(opts.model, clauses, ctx, query).then(function(modifiedQuery) {
+                return core.query(bookshelf, opts.model, modifiedQuery).fetch(fetchOpts);
             })
         } else {
-            queryPromise = core.query(bookshelf, opts.model, query).fetch()
+            finalPromise = core.query(bookshelf, opts.model, query).fetch(fetchOpts);
         }
-        return queryPromise.then(function(instances) {
+        return finalPromise.then(function(instances) {
             return Promise.all([
                 instances,
                 core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R)

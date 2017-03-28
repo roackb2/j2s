@@ -590,6 +590,113 @@ Available suffixes includes:
 21. `reg_ilike`: a POSIX regex match statement, case insensitive (PostgreSQL only).
 22. `reg_not_ilike`: a POSIX regex not match statement, case insensitive (PostgreSQL only).
 
+### Extra Attributes and Extra Clauses on query
+
+j2s allows backend developers to define some extra functions on model class and model prototype, then when front-end queries, they could specify what clause or attribute they want to add, to add extra information or extra query conditions when j2s executes the query, via the `add_attr` and `add_clause` keywords.
+
+#### `add_attr`
+Conecpt of `add_attr` is that, backend developer defines some member functions on the bookshelf model prototype, then when instances are fetched from database according to the query conditions, j2s executes the member function on *EACH* instance that has been queried, and add one more attributes on the object in the response. It's useful when that you need some extra attributes or column on the response object that needs complicated logic or DB operations or any asynchronous operations.
+
+For example, the backend defines following methods on Post model prototype:
+
+```javascript
+const Comment = bookshelf.Model.extend({
+    tableName: 'comment';
+})
+
+const Post = bookshelf.Model.extend({
+    tableName: 'post',
+
+    comments: function() {
+        return this.hasMany(Comment);
+    }
+})
+
+/**
+ * has_comment - check that whether the post has one or more comments;
+ *
+ * @param {Context} ctx koa context object
+ *
+ * @return {boolean} boolean indicates whether the post has one or more comments;
+ */
+Post.prototype.has_comment = async function(ctx) {
+    let count = await this.comments().query().count();
+    return count !== 0;
+}
+```
+
+And the front-end sends the query `GET hostname/users?query={"add_attr":["has_comment"]}`,
+the server would respond something like following:
+
+```json
+{
+    "data": [
+        {
+            "id": 1,
+            "content": "oh so this is how add_attr means!",
+            "has_comment": true
+        },
+        {
+            "id": 2,
+            "content": "it means you'll get one more attributes named `has_comment` on each object",
+            "has_comment": false
+        }
+    ]
+}
+```
+
+
+#### `add_clause`
+
+Concept of add_clause is that, the backend developer could define some member function on the bookshelf model class, then when j2s receives a request, it would add some extra query clauses to the query object *BEFORE* it executes the query. it's useful when you want to reduce the burden to figure out how to write a complicate SQL query for the front-end developers, or some keywords like `join` is forbidden to be used for the front-ends, then backend could take care of it.
+
+For example, front-end sends `GET host/users?query={"add_clause":["filter_active"]}`
+
+and backend defines following method on the User model:
+
+```javascript
+const User = core.bookshelf.Model.extend({
+    tableName: 'user'
+})
+
+/**
+ * filter_active - filter out the users that is active, which means that the user's email has been verified, and the deletion flag is not set on the user, assuming there are two columns `email_verified` and `deleted` in the user table
+ *
+ * @param {Context} ctx     the koa context object
+ * @param {object}  query   the JSON object that represents the query
+ *
+ * @return {object} should return the modified query object
+ */
+User.filter_active = async function(ctx, query) {
+    if (!_.has(query, 'where')) {
+        query.where = {};
+    }
+    query.where.email_verified == true;
+    query.where.deleted = false;
+    return query;
+}
+```
+
+then the server may response something like following:
+```json
+{
+    "data": [
+        {
+            "id": 1,
+            "username": "bob",
+            "email_verified": true,
+            "deleted": false
+        }, {
+            "id": 2,
+            "username": "evan",
+            "email_verified": true,
+            "deleted": false
+        }
+    ]
+}
+```
+
+
 ### Advanced Examples
 
 ```json
