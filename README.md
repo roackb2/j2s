@@ -458,8 +458,15 @@ Available top level keys are:
 1. `where`: specifies query conditions,
     value example:
     ```json
-    {"username": "hello"}
+    {"username": "hello", "id__in": [1,2,3]}
     ```
+
+    conditions could also be array of JSON objects,
+    value example:
+    ```json
+    [{"username": "hello"}, {"id__in": [1,2,3]}]
+    ```
+
 2. `select`: specifies which columns to select,
     value example:
     ```json
@@ -560,6 +567,40 @@ Available top level keys are:
     "badge"
     ```
 
+13. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
+
+14. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
+
+15. `and`: an AND operation, this special keyword allows recursive conditions parsing, all conditions inside an `and` JSON object are ANDed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
+    value example:
+    ```json
+    {"username": "hello", "id__in": [1,2,3]}
+    ```
+
+    conditions could also be array of JSON objects,
+    value example:
+    ```json
+    [{"username": "hello"}, {"id__in": [1,2,3]}]
+    ```
+
+
+16. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ORed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
+    value example:
+    ```json
+    {"username": "hello", "id__in": [1,2,3]}
+    ```
+
+    conditions could also be array of JSON objects,
+    value example:
+    ```json
+    [{"username": "hello"}, {"id__in": [1,2,3]}]
+    ```
+
+17. `add_attr`: for custom attributes that need to do more database queries or any asynchronous operations, the `add_attr` keyword provides the capability to define custom functions that return promises on model prototypes, then APIs will resolve these functions and set the result as a same-named attribute on returned data. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
+
+18. `add_clause`: for adding extra database query clause that is pre-defined by backend, which might lower down front-ends' burden or adds ability that is forbidden for front-ends to do. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
+
+
 ### Where Conditions Suffixes
 
 You can use suffix appended after a column in a where condition to achieve advanced query clause.
@@ -577,18 +618,14 @@ Available suffixes includes:
 8. `in`: in a list of values
 9. `not_in`: not in a list of values
 10. `null`: set to true to find records with null values on that column, or false to find  not null ones.
-11. `and`: an AND operation, this special keyword allows recursive conditions parsing, all conditions inside an `and` JSON object are ANDed together.
-12. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ORed together.
-13. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
-14. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
-15. `like`: like a string, case sensitive. The value is automatically wrapped inside a pair of percentage symbols, to achive substring match. For example, `{like: 'apple'}` would be equivalent to `like '%apple%'` SQL statement.
-16. `not_like`: not like a string, case sensitive. The value is also automatically wrapped inside a pair of percentage symbols.
-17. `ilike`: like a string, case insensitive (PostgreSQL only).
-18. `not_ilike`: not like a string, case insensitive (PostgreSQL only).
-19. `reg_like`: a POSIX regex match statement, case sensitive (PostgreSQL only).
-20. `reg_not_like`: a POSIX regex not match statement, case sensitive (PostgreSQL only).
-21. `reg_ilike`: a POSIX regex match statement, case insensitive (PostgreSQL only).
-22. `reg_not_ilike`: a POSIX regex not match statement, case insensitive (PostgreSQL only).
+11. `like`: like a string, case sensitive. The value is automatically wrapped inside a pair of percentage symbols, to achive substring match. For example, `{like: 'apple'}` would be equivalent to `like '%apple%'` SQL statement.
+12. `not_like`: not like a string, case sensitive. The value is also automatically wrapped inside a pair of percentage symbols.
+13. `ilike`: like a string, case insensitive (PostgreSQL only).
+14. `not_ilike`: not like a string, case insensitive (PostgreSQL only).
+15. `reg_like`: a POSIX regex match statement, case sensitive (PostgreSQL only).
+16. `reg_not_like`: a POSIX regex not match statement, case sensitive (PostgreSQL only).
+17. `reg_ilike`: a POSIX regex match statement, case insensitive (PostgreSQL only).
+18. `reg_not_ilike`: a POSIX regex not match statement, case insensitive (PostgreSQL only).
 
 ### Extra Attributes and Extra Clauses on query
 
@@ -704,13 +741,14 @@ then the server may response something like following:
     "where": {
         "user.id__gt": 1,
         "user.id__lt": 10,
-        "user.id__between": [1, 10],
-        "user.id__not_between": [11, 13],
-        "username__ne": "yo",
-        "username__in": ["test1", "test2", "test4", "test6"],
+        "and": [{
+            "username__in": ["test1", "test2", "test4", "test6"]
+        }, {
+            "username__ne": "yo"
+        }],
         "or": {
-            "username": "test",
-            "user.id__in": [1, 2, 3]
+            "user.id__between": [1, 10],
+            "user.id__not_between": [11, 13],
         },
         "exists": {
             "photo": {

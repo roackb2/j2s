@@ -184,47 +184,53 @@ function parseConditions(knex, builder, conds, op) {
     if (!op) {
         op = 'and';
     }
-    // loop through key value pairs of the conditions object
-    _.forIn(conds, (v, k) => {
-        let parts = k.split('__'); // suffix is appended to column names with double underscores
-        if (parts.length == 1) {
-            if (k == 'or' || k == 'and') {
-                // if key is the keyword `and` or `or`, recursively parse the value,
-                // with according logical operation
-                builder = builder[methodMap[op]](function() {
-                    parseConditions(knex, this, v, k)
-                })
-            } else if (k == 'exists' || k == 'not_exists') {
-                // handle EXISTS queries, recursively parse them
-                _.forIn(v, function(value, key) {
-                    builder = builder[methodMap[k][op]](function() {
-                        existsQuery.call(this, knex, key, value)
+    if (_.isPlainObject(conds)) {
+        conds = [conds]
+    }
+    // allow conditions to be represented as array of condition objects
+    _.each(conds, cond => {
+        // loop through key value pairs of the condition object
+        _.forIn(cond, (v, k) => {
+            let parts = k.split('__'); // suffix is appended to column names with double underscores
+            if (parts.length == 1) {
+                if (k == 'or' || k == 'and') {
+                    // if key is the keyword `and` or `or`, recursively parse the value,
+                    // with according logical operation
+                    builder = builder[methodMap[op]](function() {
+                        parseConditions(knex, this, v, k)
                     })
-                })
+                } else if (k == 'exists' || k == 'not_exists') {
+                    // handle EXISTS queries, recursively parse them
+                    _.forIn(v, function(value, key) {
+                        builder = builder[methodMap[k][op]](function() {
+                            existsQuery.call(this, knex, key, value)
+                        })
+                    })
 
-            } else {
-                // for simple 'column equals to value' scenario, simply add a raw preparation
-                let preparation = knex.raw('?? = ?', [k, v]);
-                if (_.isString(v)) {
-                    let words = v.split('.');
-                    let reg = /^([A-Za-z]|[0-9]|_|\$)+$/
-                    if (words.length == 2 && words[0].match(reg) && words[1].match(reg)) {
-                        // value is an identifier
-                        preparation = knex.raw('?? = ??', [k, v])
+                } else {
+                    // for simple 'column equals to value' scenario, simply add a raw preparation
+                    let preparation = knex.raw('?? = ?', [k, v]);
+                    if (_.isString(v)) {
+                        let words = v.split('.');
+                        let reg = /^([A-Za-z]|[0-9]|_|\$)+$/
+                        if (words.length == 2 && words[0].match(reg) && words[1].match(reg)) {
+                            // value is an identifier
+                            preparation = knex.raw('?? = ??', [k, v])
+                        }
                     }
+                    builder = builder[methodMap.where[op]](preparation)
                 }
-                builder = builder[methodMap.where[op]](preparation)
+            } else if (parts.length == 2) {
+                // if column name is followed by suffix,
+                // call the suffix callback and handle the query
+                let col = parts[0];
+                let suffix = parts[1];
+                if (!_.has(whereSuffixes, suffix)) {
+                    throw errors.FnErrSuffixNotImplemented(suffix);
+                }
+                builder = whereSuffixes[suffix](knex, builder, col, v, op);
             }
-        } else if (parts.length == 2) {
-            // if column name is followed by suffix,
-            // call the suffix callback and handle the query
-            let col = parts[0];
-            let suffix = parts[1];
-            if (!_.has(whereSuffixes, suffix)) {
-                throw errors.FnErrSuffixNotImplemented(suffix);
-            }
-            builder = whereSuffixes[suffix](knex, builder, col, v, op);
-        }
+        })
     })
     return builder;
 }
