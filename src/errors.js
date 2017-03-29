@@ -59,4 +59,10 @@ module.exports = {
     FnErrDatabaseOperationError: function(msg) {
         return new J2SError(100128, util.format('DB operation error: %s', msg));
     },
+    FnErrClauseNotExists: function(clause) {
+        return new J2SError(100129, util.format('clause `%s` is not defined on the model', clause));
+    },
+    FnErrClauseObjectShouldHaveExactlyOneKey: function(keys) {
+        return new J2SError(100130, util.format('clause should have exactly one key, but got [%s]', keys));
+    },
 }

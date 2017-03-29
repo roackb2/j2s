@@ -27,14 +27,24 @@ function chainClauses (model, clauses, ctx, query) {
     if (clauses.length > 0) {
         let clause = clauses.shift();
         if (_.isString(clause)) {
+            if (!_.has(model, clause)) {
+                throw errors.FnErrClauseNotExists(clause);
+            }
             return model[clause](ctx, query).then(function(modifiedQuery) {
                 return chainClauses(model, clauses, ctx, modifiedQuery);
             })
-        } else if (_.isPlainObject(prop)) {
-            _.forIn(prop, function(value, key) {
-                return model[clause](ctx, query, value).then(function(modifiedQuery) {
-                    return chainClauses(model, clauses, ctx, modifiedQuery)
-                })
+        } else if (_.isPlainObject(clause)) {
+            let keys = _.keys(clause);
+            if (keys.length !== 1) {
+                throw errors.FnErrClauseObjectShouldHaveExactlyOneKey(keys);
+            }
+            let key = keys[0];
+            let value = clause[key];
+            if (!_.has(model, key)) {
+                throw errors.FnErrClauseNotExists(key);
+            }
+            return model[key](ctx, query, value).then(function(modifiedQuery) {
+                return chainClauses(model, clauses, ctx, modifiedQuery)
             })
         } else {
             throw errors.ErrAddClauseElementShouldBeStringOrObject;

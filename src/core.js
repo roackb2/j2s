@@ -196,15 +196,12 @@ function parseConditions(knex, builder, conds, op) {
                 })
             } else if (k == 'exists' || k == 'not_exists') {
                 // handle EXISTS queries, recursively parse them
-                let keys = _.keys(v);
-                if (keys.length != 1) {
-                    throw errors.ErrExistsObjectShouldHaveExactlyOneKey;
-                }
-                let key = keys[0];
-                let value = v[key];
-                builder = builder[methodMap[k][op]](function() {
-                    existsQuery.call(this, knex, key, value)
+                _.forIn(v, function(value, key) {
+                    builder = builder[methodMap[k][op]](function() {
+                        existsQuery.call(this, knex, key, value)
+                    })
                 })
+
             } else {
                 // for simple 'column equals to value' scenario, simply add a raw preparation
                 let preparation = knex.raw('?? = ?', [k, v]);
