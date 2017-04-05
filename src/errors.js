@@ -1,7 +1,6 @@
 'use strict';
 
-const _ = require('lodash');
-const util = require('util');
+import { format } from 'util';
 
 function J2SError(code, message, status) {
     this.success = false;
@@ -30,16 +29,16 @@ module.exports = {
     ErrNotInSuffixShouldBeList: new J2SError(100106, 'value for query clause with `not_in` suffix must be list'),
     ErrNullSuffixShouldBeBoolean: new J2SError(100107, 'value for query clause with `null` suffix must be boolean'),
     FnErrSuffixNotImplemented: function(suffix) {
-        return new J2SError(100108, util.format('suffix `%s` is not implemented', suffix));
+        return new J2SError(100108, format('suffix `%s` is not implemented', suffix));
     },
     ErrJoinShouldBeJSONObject: new J2SError(100108, 'value of `join` should be JSON object'),
     ErrOrderByShouldBeList: new J2SError(100109, 'value of `order_by` should be list'),
     ErrOrderByLengthShouldBeTwo: new J2SError(100110, 'value of `order_by` could only be of length 1 or 2'),
     FnErrKeywordNotImplemented: function(keyword) {
-        return new J2SError(100111, util.format('keyword `%s` is not implemented', keyword));
+        return new J2SError(100111, format('keyword `%s` is not implemented', keyword));
     },
     FnErrUnknowRuleType: function(rule) {
-        return new J2SError(100112, util.format('unknown rule type: %s', rule));
+        return new J2SError(100112, format('unknown rule type: %s', rule));
     },
     ErrOperationNotAuthorized: new J2SError(100113, 'operation not authorized'),
     ErrQueryShouldBeJsonObject: new J2SError(100115, 'value of `query` must be JSON object'),
@@ -50,19 +49,19 @@ module.exports = {
     ErrExistsObjectShouldHaveExactlyOneKey: new J2SError(100121, 'value of `exists` or `not_exists` should be JSON object that contains exactly one key'),
     ErrExtraShouldBeList: new J2SError(100122, 'value of `extra` should be JSON Array'),
     FnErrKeyForbidden: function(keyword) {
-        return new J2SError(100123, util.format('keyword `%s` is forbidden', keyword));
+        return new J2SError(100123, format('keyword `%s` is forbidden', keyword));
     },
     ErrAddClauseElementShouldBeStringOrObject: new J2SError(100124, 'value of element in `add_clause` should be either JSON object or string'),
     ErrLikeShouldBeStringOrList: new J2SError(100125, 'value of `like` should be either JSON array or string'),
     ErrDeletionNotAllowed: new J2SError(100126, 'deletion for more than one instance is not allowed'),
     ErrResourceNotFound: new J2SError(100127, 'resource not found'),
     FnErrDatabaseOperationError: function(msg) {
-        return new J2SError(100128, util.format('DB operation error: %s', msg));
+        return new J2SError(100128, format('DB operation error: %s', msg));
     },
     FnErrClauseNotExists: function(clause) {
-        return new J2SError(100129, util.format('clause `%s` is not defined on the model', clause));
+        return new J2SError(100129, format('clause `%s` is not defined on the model', clause));
     },
     FnErrClauseObjectShouldHaveExactlyOneKey: function(keys) {
-        return new J2SError(100130, util.format('clause should have exactly one key, but got [%s]', keys));
+        return new J2SError(100130, format('clause should have exactly one key, but got [%s]', keys));
     },
 }

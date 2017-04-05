@@ -1,51 +1,61 @@
 'use strict';
 
-const _ = require('lodash');
-const core = require('./core');
-const errors = require('./errors');
-const Router = require('koa-router');
-const Promise = require('bluebird');
+require('babel-polyfill');
+import isString from 'lodash/isString';
+import isPlainObject from 'lodash/isPlainObject';
+import isArray from 'lodash/isArray';
+import isNil from 'lodash/isNil';
+import includes from 'lodash/includes';
+import forEach from 'lodash/forEach';
+import each from 'lodash/each';
+import has from 'lodash/has';
+import { default as lodashKeys } from 'lodash/keys';
+import map from 'lodash/map';
+import * as core from './core';
+import * as errors from './errors';
+import Router from 'koa-router';
+import Promise from 'bluebird';
 
 const methods = ['C', 'R', 'U', 'D'];
 const configProps = ['access', 'identity', 'admin', 'middlewares'];
 
-function chainFuncs (ctx, instances, funcs) {
+async function chainFuncs (ctx, instances, funcs) {
     if (funcs.length > 0) {
         let func = funcs.shift();
-        return Promise.all(instances.invokeMap(func, ctx)).then(function(results) {
-            for(var i = 0; i < instances.length; i++) {
-                instances.at(i).set(func, results[i]);
-            }
-            return chainFuncs(ctx, instances, funcs);
-        });
+        let results = await Promise.all(instances.invokeMap(func, ctx));
+        for(var i = 0; i < instances.length; i++) {
+            instances.at(i).set(func, results[i]);
+        }
+        let res = await chainFuncs(ctx, instances, funcs);
+        return res;
     } else {
         return instances;
     }
 }
 
-function chainClauses (model, clauses, ctx, query) {
+async function chainClauses (model, clauses, ctx, query) {
     if (clauses.length > 0) {
         let clause = clauses.shift();
-        if (_.isString(clause)) {
-            if (!_.has(model, clause)) {
+        if (isString(clause)) {
+            if (!has(model, clause)) {
                 throw errors.FnErrClauseNotExists(clause);
             }
-            return model[clause](ctx, query).then(function(modifiedQuery) {
-                return chainClauses(model, clauses, ctx, modifiedQuery);
-            })
-        } else if (_.isPlainObject(clause)) {
-            let keys = _.keys(clause);
+            let modifiedQuery = await model[clause](ctx, query);
+            let res = await chainClauses(model, clauses, ctx, modifiedQuery);;
+            return res;
+        } else if (isPlainObject(clause)) {
+            let keys = lodashKeys(clause);
             if (keys.length !== 1) {
                 throw errors.FnErrClauseObjectShouldHaveExactlyOneKey(keys);
             }
             let key = keys[0];
             let value = clause[key];
-            if (!_.has(model, key)) {
+            if (!has(model, key)) {
                 throw errors.FnErrClauseNotExists(key);
             }
-            return model[key](ctx, query, value).then(function(modifiedQuery) {
-                return chainClauses(model, clauses, ctx, modifiedQuery)
-            })
+            let modifiedQuery = await model[key](ctx, query, value);
+            let res = await chainClauses(model, clauses, ctx, modifiedQuery);
+            return res;
         } else {
             throw errors.ErrAddClauseElementShouldBeStringOrObject;
         }
@@ -64,45 +74,40 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         }
     }
 
-    let getOne = function (ctx, next) {
-        return opts.model.where('id', ctx.params.id).fetchAll().then(function (instances) {
-            return Promise.all([
-                instances,
-                core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R)
-            ])
-        }).spread(function (instances, check) {
-            if (!check) {
-                throw errors.ErrOperationNotAuthorized;
-            }
-            let instance = instances.toJSON()
-            if (instance.length > 0) {
-                instance = instance[0]
-            }
-            ctx.body = {data: instance}
-        }).catch(errHandler);
+    let getOne = async function (ctx, next) {
+        let instances = await opts.model.where('id', ctx.params.id).fetchAll();
+        let check = await core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R);
+        if (!check) {
+            throw errors.ErrOperationNotAuthorized;
+        }
+        let instance = instances.toJSON()
+        if (instance.length > 0) {
+            instance = instance[0]
+        }
+        ctx.body = {data: instance}
     };
 
-    let get = function (ctx, next) {
+    let get = async function (ctx, next) {
         let query = {}
         if (ctx.request.query.query) {
             query = JSON.parse(ctx.request.query.query)
         }
-        if (!_.isPlainObject(query)) {
+        if (!isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        _.each(_.keys(query), function(key) {
-            if (_.includes(forbids, key)) {
+        each(lodashKeys(query), function(key) {
+            if (includes(forbids, key)) {
                 throw errors.FnErrKeyForbidden(key);
             }
         })
         let fetchOpts = {};
-        if (_.has(query, 'populate')) {
-            if (!_.isArray(query.populate)) {
+        if (has(query, 'populate')) {
+            if (!isArray(query.populate)) {
                 throw errors.ErrPopulateShouldBeList;
             }
-            let populate = _.map(query.populate, function(population) {
-                if (_.isPlainObject(population)) {
-                    let keys = _.keys(population)
+            let populate = map(query.populate, function(population) {
+                if (isPlainObject(population)) {
+                    let keys = lodashKeys(population)
                     if (keys.length != 1) {
                         throw errors.ErrPopulateObjectShouldHaveExactlyOneKey
                     }
@@ -112,7 +117,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
                         core.builderQuery(knex, builder, population[key])
                     }
                     return res;
-                } else if (_.isString(population)){
+                } else if (isString(population)){
                     return population;
                 } else {
                     throw errors.ErrPopulateElementShouldBeStringOrObject;
@@ -120,106 +125,78 @@ function setupController(bookshelf, controller, path, opts, forbids) {
             })
             fetchOpts = {withRelated: populate}
         }
-        let finalPromise = null;
-        if (_.has(query, 'add_clause')) {
+        if (has(query, 'add_clause')) {
             let clauses = query.add_clause
-            if (!_.isArray(clauses)) {
+            if (!isArray(clauses)) {
                 throw errors.ErrExtraShouldBeList;
             }
-            finalPromise = chainClauses(opts.model, clauses, ctx, query).then(function(modifiedQuery) {
-                return core.query(bookshelf, opts.model, modifiedQuery).fetch(fetchOpts);
-            })
-        } else {
-            finalPromise = core.query(bookshelf, opts.model, query).fetch(fetchOpts);
+            query = await chainClauses(opts.model, clauses, ctx, query);
         }
-        return finalPromise.then(function(instances) {
-            return Promise.all([
-                instances,
-                core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R)
-            ])
-        }).spread(function(instances, check) {
-            if (!check) {
-                throw errors.ErrOperationNotAuthorized;
-            }
-            if (_.has(query, 'add_attr')) {
-                return chainFuncs(ctx, instances, query.add_attr);
-            } else {
-                return instances;
-            }
-        }).then(function (instances) {
-            ctx.body = {data: instances}
-        }).catch(errHandler);
+        let instances = await core.query(bookshelf, opts.model, query).fetch(fetchOpts);
+        let check = await core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R);
+        if (!check) {
+            throw errors.ErrOperationNotAuthorized;
+        }
+        if (has(query, 'add_attr')) {
+            instances = await chainFuncs(ctx, instances, query.add_attr);
+        }
+        ctx.body = {data: instances}
     };
 
-    let post = function (ctx, next) {
+    let post = async function (ctx, next) {
         let data = ctx.request.body.data
-        if (!_.isArray(data)) {
+        if (!isArray(data)) {
             data = [data]
         }
         let modelCollection = bookshelf.Collection.extend({
             model: opts.model
         })
         let instances = modelCollection.forge(data)
-        return core.check(ctx, opts.identity.C, opts.admin.C, instances, opts.access.C).then(function(check) {
-            if (!check) {
-                throw errors.ErrOperationNotAuthorized;
-            }
-            return instances.invokeThen('save');
-        }).then(function(res) {
-            ctx.body = {data: res}
-        }).catch(errHandler);
+        let check = await core.check(ctx, opts.identity.C, opts.admin.C, instances, opts.access.C);
+        if (!check) {
+            throw errors.ErrOperationNotAuthorized;
+        }
+        let res = await instances.invokeThen('save');
+        ctx.body = {data: res}
     };
 
-    let put = function (ctx, next) {
+    let put = async function (ctx, next) {
         let query = ctx.request.body.query
-        if (!_.isPlainObject(query)) {
+        if (!isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
         let data = ctx.request.body.data
-        if (!_.isPlainObject(data)) {
+        if (!isPlainObject(data)) {
             throw errors.ErrDataShouldBeJsonObject;
         }
-        return core.query(bookshelf, opts.model, query).fetch().then(function(instances) {
-            return Promise.all([
-                instances,
-                core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U)
-            ])
-        }).spread(function(instances, check) {
-            if (!check) {
-                throw errors.ErrOperationNotAuthorized;
-            }
-            return instances.invokeThen('save', data, {method: 'update', patch: true});
-        }).then(function(res) {
-            ctx.body = {data: res}
-        }).catch(errHandler);
+        let instances = await core.query(bookshelf, opts.model, query).fetch();
+        let check = await core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U);
+        if (!check) {
+            throw errors.ErrOperationNotAuthorized;
+        }
+        let res = await instances.invokeThen('save', data, {method: 'update', patch: true});
+        ctx.body = {data: res}
     };
 
-    let del = function (ctx, next) {
+    let del = async function (ctx, next) {
         let query = ctx.request.body.query
-        if (!_.isPlainObject(query)) {
+        if (!isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        return core.query(bookshelf, opts.model, query).count().then(function(count) {
-            if (count > 1) {
-                throw errors.ErrDeletionNotAllowed;
-            }
-            return core.query(bookshelf, opts.model, query).fetch();
-        }).then(function(instances) {
-            return Promise.all([
-                instances,
-                core.check(ctx, opts.identity.D, opts.admin.D, instances, opts.access.D)
-            ])
-        }).spread(function(instances, check) {
-            if (!check) {
-                throw errors.ErrOperationNotAuthorized;
-            }
-            return instances.invokeThen('destroy')
-        }).then(function(res) {
-            if (res.length == 0) {
-                throw errors.ErrResourceNotFound;
-            }
-            ctx.body = {success: true};
-        }).catch(errHandler);
+        let count = await core.query(bookshelf, opts.model, query).count();
+        if (count > 1) {
+            throw errors.ErrDeletionNotAllowed;
+        }
+        let instances = await core.query(bookshelf, opts.model, query).fetch();
+        let check = await core.check(ctx, opts.identity.D, opts.admin.D, instances, opts.access.D);
+        if (!check) {
+            throw errors.ErrOperationNotAuthorized;
+        }
+        let res = await instances.invokeThen('destroy');
+        if (res.length == 0) {
+            throw errors.ErrResourceNotFound;
+        }
+        ctx.body = {success: true};
     };
 
 
@@ -232,17 +209,17 @@ function setupController(bookshelf, controller, path, opts, forbids) {
 
 function setDefaultOpts(content) {
     let obj = {};
-    _.each(methods, function(method) {
+    each(methods, function(method) {
         obj[method] = content;
     })
     return obj
 }
 
 function setOptions(res, defaultOpts) {
-    _.each(configProps, function(prop) {
-        if (_.has(defaultOpts, prop) && !_.isNil(defaultOpts, prop)) {
-            if (_.isPlainObject(defaultOpts[prop])) {
-                _.each(methods, function(method) {
+    each(configProps, function(prop) {
+        if (has(defaultOpts, prop) && !isNil(defaultOpts, prop)) {
+            if (isPlainObject(defaultOpts[prop])) {
+                each(methods, function(method) {
                     res[prop][method] = defaultOpts[prop][method];
                 })
             } else {
@@ -261,7 +238,7 @@ function resolveOptions(defaultOpts, route) {
         middlewares: setDefaultOpts([]),
     };
     res = setOptions(res, defaultOpts);
-    if (_.isPlainObject(route)) {
+    if (isPlainObject(route)) {
         res.model = route.model;
         res = setOptions(res, route);
     } else {
@@ -279,7 +256,7 @@ function J2S(defaultOpts) {
     const controller = new Router({
         prefix: prefix
     });
-    _.forEach(routes, function(route, path) {
+    forEach(routes, function(route, path) {
         let resolvedOpts = resolveOptions(defaultOpts, route);
         setupController(bookshelf, controller, path, resolvedOpts, forbids);
     })

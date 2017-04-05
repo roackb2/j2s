@@ -1,45 +1,75 @@
 {
-  "name": "j2s",
-  "version": "1.0.40",
-  "description": "JSON to SQL, build RESTful API server on the fly, which accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable middlewares",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/roackb2/j2s.git"
-  },
-  "keywords": [
-    "ORM",
-    "JSON",
-    "SQL",
-    "RESTful",
-    "API",
-    "koa",
-    "koa.js",
-    "rapid development",
-    "query language",
-    "bookshelf.js",
-    "knex",
-    "access control",
-    "GraphQL alternative",
-    "Parse alternative",
-    "Parse relational",
-    "Swagger alternative"
-  ],
-  "author": "Jay Liang <roackb2@gmail.com> (https://www.facebook.com/profile.php?id=1391931108)",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/roackb2/j2s/issues"
-  },
-  "homepage": "https://github.com/roackb2/j2s#readme",
-  "dependencies": {
-    "bluebird": "^3.4.6",
-    "bookshelf": "^0.10.1",
-    "knex": "^0.12.1",
-    "koa-router": "^7.0.1",
-    "lodash": "^4.16.1",
-    "winston": "^2.2.0"
-  }
+    "name": "j2s",
+    "version": "1.1.0",
+    "description": "JSON to SQL, build RESTful API server on the fly, which accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable middlewares",
+    "main": "index.js",
+    "scripts": {
+        "watch": "babel -w src -d dist",
+        "build": "babel src -d dist",
+        "prepublish": "npm run build",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/roackb2/j2s.git"
+    },
+    "keywords": [
+        "ORM",
+        "JSON",
+        "SQL",
+        "RESTful",
+        "API",
+        "koa",
+        "koa.js",
+        "rapid development",
+        "query language",
+        "bookshelf.js",
+        "knex",
+        "access control",
+        "GraphQL alternative",
+        "Parse alternative",
+        "Parse relational",
+        "Swagger alternative"
+    ],
+    "author": "Jay Liang <roackb2@gmail.com> (https://www.facebook.com/profile.php?id=1391931108)",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/roackb2/j2s/issues"
+    },
+    "homepage": "https://github.com/roackb2/j2s#readme",
+    "babel": {
+        "presets": [
+            "es2015",
+            "latest",
+            "react",
+            "stage-0"
+        ],
+        "plugins": [
+            "transform-react-jsx",
+            "transform-decorators-legacy",
+            "transform-regenerator",
+            "syntax-async-functions"
+        ]
+    },
+    "dependencies": {
+        "bluebird": "^3.4.6",
+        "bookshelf": "^0.10.1",
+        "knex": "^0.12.1",
+        "koa-router": "^7.0.1",
+        "lodash": "^4.16.1",
+        "winston": "^2.2.0"
+    },
+    "devDependencies": {
+        "babel-cli": "^6.23.0",
+        "babel-core": "^6.24.0",
+        "babel-loader": "^6.4.1",
+        "babel-plugin-transform-decorators-legacy": "^1.3.4",
+        "babel-plugin-transform-react-jsx": "^6.23.0",
+        "babel-polyfill": "^6.23.0",
+        "babel-preset-es2015": "^6.24.0",
+        "babel-preset-react": "^6.23.0",
+        "babel-preset-stage-0": "^6.22.0",
+        "babel-register": "^6.14.0",
+        "babel-preset-latest": "^6.16.0"
+    }
 }

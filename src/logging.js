@@ -1,6 +1,6 @@
-const winston = require('winston');
+import winston from 'winston';
 
-module.exports = logger = new(winston.Logger)({
+const logger = new(winston.Logger)({
     levels: {
         trace: 0,
         input: 1,
@@ -32,3 +32,5 @@ module.exports = logger = new(winston.Logger)({
         })
     ],
 });
+
+module.exports = logger;

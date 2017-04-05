@@ -1,11 +1,17 @@
 'use strict';
 
-const _ = require('lodash');
-const knex = require('knex');
-const util = require('util');
-const logger = require('./logging');
-const errors = require('./errors');
-const Promise = require('bluebird');
+import isString from 'lodash/isString';
+import isArray from 'lodash/isArray';
+import isPlainObject from 'lodash/isPlainObject';
+import isBoolean from 'lodash/isBoolean';
+import isFunction from 'lodash/isFunction';
+import forIn from 'lodash/forIn';
+import forEach from 'lodash/forEach';
+import has from 'lodash/has';
+import each from 'lodash/each';
+import { format } from 'util';
+import logger from './logging';
+import errors from './errors';
 
 // Constants to denote access control rules
 const ALLOW = 'allow';
@@ -62,16 +68,16 @@ const methodMap = {
 // There are many string matching operations in PostgreSQL, here we chain the bookshelf instance
 // with like operations according to the column, value, like operations and logical operations.
 let addLikeClause = function (knex, builder, col, value, likeOp, logicOp) {
-    if (_.isString(value)) {
+    if (isString(value)) {
         value = [].concat(value);
     }
-    if (_.isArray(value)) {
+    if (isArray(value)) {
         builder = builder[methodMap.where[logicOp]](function() {
             let qb = this;
-            _.each(value, function(str) {
-                let preparation = util.format('%s %s ?', col, likeOp);
+            each(value, function(str) {
+                let preparation = format('%s %s ?', col, likeOp);
                 if (likeOp.indexOf('like') !== -1) {
-                    str = util.format('%%%s%%', str)
+                    str = format('%%%s%%', str)
                 }
                 qb.orWhere(knex.raw(preparation, [str]));
             })
@@ -125,7 +131,7 @@ const whereSuffixes = {
         return addLikeClause(knex, builder, col, value, '!~*', op);
     },
     'between': (knex, builder, col, value, op) => {
-        if (!_.isArray(value)) {
+        if (!isArray(value)) {
             throw errors.ErrBetweenSuffixValueShouldBeList;
         }
         if (value.length != 2) {
@@ -134,7 +140,7 @@ const whereSuffixes = {
         return builder[methodMap.between[op]](col, value);
     },
     'not_between': (knex, builder, col, value, op) => {
-        if (!_.isArray(value)) {
+        if (!isArray(value)) {
             throw errors.ErrNotBetweenSuffixShouldBeList;
         }
         if (value.length != 2) {
@@ -143,19 +149,19 @@ const whereSuffixes = {
         return builder[methodMap.not_between[op]](col, value);
     },
     'in': (knex, builder, col, value, op) => {
-        if (!_.isArray(value)) {
+        if (!isArray(value)) {
             throw errors.ErrInSuffixShouldBeList;
         }
         return builder[methodMap.in[op]](col, value);
     },
     'not_in': (knex, builder, col, value, op) => {
-        if (!_.isArray(value)) {
+        if (!isArray(value)) {
             throw erros.ErrNotInSuffixShouldBeList;
         }
         return builder[methodMap.not_in[op]](col, value);
     },
     'null': (knex, builder, col, value, op) => {
-        if (!_.isBoolean(value)) {
+        if (!isBoolean(value)) {
             throw errors.ErrNullSuffixShouldBeBoolean;
         }
         if (value) {
@@ -170,7 +176,7 @@ const whereSuffixes = {
 // to form a subquery.
 function existsQuery(knex, table, value) {
     this.from(table);
-    if (!_.has(value, 'where')) {
+    if (!has(value, 'where')) {
         this.select('*');
         parseConditions(knex, this, value);
     } else {
@@ -184,13 +190,13 @@ function parseConditions(knex, builder, conds, op) {
     if (!op) {
         op = 'and';
     }
-    if (_.isPlainObject(conds)) {
+    if (isPlainObject(conds)) {
         conds = [conds]
     }
     // allow conditions to be represented as array of condition objects
-    _.each(conds, cond => {
+    each(conds, cond => {
         // loop through key value pairs of the condition object
-        _.forIn(cond, (v, k) => {
+        forIn(cond, (v, k) => {
             let parts = k.split('__'); // suffix is appended to column names with double underscores
             if (parts.length == 1) {
                 if (k == 'or' || k == 'and') {
@@ -201,7 +207,7 @@ function parseConditions(knex, builder, conds, op) {
                     })
                 } else if (k == 'exists' || k == 'not_exists') {
                     // handle EXISTS queries, recursively parse them
-                    _.forIn(v, function(value, key) {
+                    forIn(v, function(value, key) {
                         builder = builder[methodMap[k][op]](function() {
                             existsQuery.call(this, knex, key, value)
                         })
@@ -210,7 +216,7 @@ function parseConditions(knex, builder, conds, op) {
                 } else {
                     // for simple 'column equals to value' scenario, simply add a raw preparation
                     let preparation = knex.raw('?? = ?', [k, v]);
-                    if (_.isString(v)) {
+                    if (isString(v)) {
                         let words = v.split('.');
                         let reg = /^([A-Za-z]|[0-9]|_|\$)+$/
                         if (words.length == 2 && words[0].match(reg) && words[1].match(reg)) {
@@ -225,7 +231,7 @@ function parseConditions(knex, builder, conds, op) {
                 // call the suffix callback and handle the query
                 let col = parts[0];
                 let suffix = parts[1];
-                if (!_.has(whereSuffixes, suffix)) {
+                if (!has(whereSuffixes, suffix)) {
                     throw errors.FnErrSuffixNotImplemented(suffix);
                 }
                 builder = whereSuffixes[suffix](knex, builder, col, v, op);
@@ -238,11 +244,11 @@ function parseConditions(knex, builder, conds, op) {
 // handle JOIN operation, if there's a subquery,
 // recursively parse it
 function join(builder, method, value) {
-    if (!_.isPlainObject(value)) {
+    if (!isPlainObject(value)) {
         throw errors.ErrJoinShouldBeJSONObject;
     }
-    _.forEach(value, (v, k) => {
-        if (_.has(v, 'subquery')) {
+    forEach(value, (v, k) => {
+        if (has(v, 'subquery')) {
             builder = method.call(builder, function() {
                 this.from(k)
                 builderQuery(this, v.subquery).as(v.as)
@@ -299,7 +305,7 @@ const keywords = {
         return builder.groupBy(value);
     },
     'order_by': (knex, builder, value, key) => {
-        if (!_.isArray(value)) {
+        if (!isArray(value)) {
             value = [value];
             throw errors.ErrOrderByShouldBeList;
         }
@@ -309,8 +315,8 @@ const keywords = {
         return builder.orderBy.apply(builder, value);
     },
     'count': (knex, builder, value, key) => {
-        if (_.isArray(value))  {
-            _.each(value, function(col) {
+        if (isArray(value))  {
+            each(value, function(col) {
                 builder = builder.count(col)
             })
         } else {
@@ -347,8 +353,8 @@ const keywords = {
 // accepts a knex query builder, parse the query clauses and chain the methods,
 // return the builder
 function builderQuery(knex, builder, clauses) {
-    _.forIn(clauses, (value, key) => {
-        if (!_.has(keywords, key)) {
+    forIn(clauses, (value, key) => {
+        if (!has(keywords, key)) {
             throw errors.FnErrKeywordNotImplemented(key);
         }
         builder = keywords[key](knex, builder, value, key)
@@ -371,41 +377,39 @@ function query(bookshelf, model, clauses) {
 }
 
 // check access control rules, return a Promise that resolves to true or false
-function check(ctx, identityCB, adminCB, instances, rule) {
+async function check(ctx, identityCB, adminCB, instances, rule) {
     if (!identityCB) {
-        return Promise.resolve(true)
+        return true;
     }
     if (rule == ALLOW) {
-        return Promise.resolve(true);
+        return true;
     }
-    return identityCB(ctx).then(function(identity) {
-        return adminCB(identity).then(function(isAdmin) {
-            if (isAdmin) {
-                return Promise.resolve(true);
-            }
-            if (rule == DENY) {
-                return Promise.resolve(false);
-            }
-            if (!_.isArray(instances)) {
-                instances = instances.toArray()
-            }
-            for (var i = 0; i < instances.length; i++) {
-                let instance = instances[i];
-                if (_.isPlainObject(rule)) {
-                    for (var key in rule) {
-                        if (identity[key] != instance.get(rule[key])) {
-                            return Promise.resolve(false);
-                        }
-                    }
-                } else if (_.isFunction(rule)) {
-                    return rule(identity, instance);
-                } else {
-                    throw errors.FnErrUnknowRuleType(rule);
+    let identity = await identityCB(ctx);
+    let isAdmin = await adminCB(identity);
+    if (isAdmin) {
+        return true;
+    }
+    if (rule == DENY) {
+        return false;
+    }
+    if (!isArray(instances)) {
+        instances = instances.toArray()
+    }
+    for (var i = 0; i < instances.length; i++) {
+        let instance = instances[i];
+        if (isPlainObject(rule)) {
+            for (var key in rule) {
+                if (identity[key] != instance.get(rule[key])) {
+                    return false;
                 }
             }
-            return Promise.resolve(true);
-        })
-    })
+        } else if (isFunction(rule)) {
+            return rule(identity, instance);
+        } else {
+            throw errors.FnErrUnknowRuleType(rule);
+        }
+    }
+    return true;
 }
 
 module.exports = {
