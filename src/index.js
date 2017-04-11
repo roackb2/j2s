@@ -4,18 +4,22 @@ require('babel-polyfill');
 import isString from 'lodash/isString';
 import isPlainObject from 'lodash/isPlainObject';
 import isArray from 'lodash/isArray';
+import isNumber from 'lodash/isNumber';
 import isNil from 'lodash/isNil';
 import includes from 'lodash/includes';
+import forIn from 'lodash/forIn';
 import forEach from 'lodash/forEach';
 import each from 'lodash/each';
 import has from 'lodash/has';
+import omit from 'lodash/omit';
+import pick from 'lodash/pick';
 import { default as lodashKeys } from 'lodash/keys';
 import map from 'lodash/map';
-import * as core from './core';
-import * as errors from './errors';
 import Router from 'koa-router';
 import Promise from 'bluebird';
-
+import * as core from './core';
+import * as errors from './errors';
+import { getRelationNames, modifyRelation } from './relation';
 const methods = ['C', 'R', 'U', 'D'];
 const configProps = ['access', 'identity', 'admin', 'middlewares'];
 
@@ -64,8 +68,105 @@ async function chainClauses (model, clauses, ctx, query) {
     }
 }
 
+async function getInstances(bookshelf, ctx, query, controller, path, opts, forbids) {
+    each(lodashKeys(query), function(key) {
+        if (includes(forbids, key)) {
+            throw errors.FnErrKeyForbidden(key);
+        }
+    })
+    let fetchOpts = {};
+    if (has(query, 'populate')) {
+        if (!isArray(query.populate)) {
+            throw errors.ErrPopulateShouldBeList;
+        }
+        let populate = map(query.populate, function(population) {
+            if (isPlainObject(population)) {
+                let keys = lodashKeys(population)
+                if (keys.length != 1) {
+                    throw errors.ErrPopulateObjectShouldHaveExactlyOneKey
+                }
+                let key = keys[0]
+                let res = {}
+                res[key] = function(builder) {
+                    core.builderQuery(bookshelf.knex, builder, population[key])
+                }
+                return res;
+            } else if (isString(population)){
+                return population;
+            } else {
+                throw errors.ErrPopulateElementShouldBeStringOrObject;
+            }
+        })
+        fetchOpts = {withRelated: populate}
+    }
+    if (has(query, 'add_clause')) {
+        let clauses = query.add_clause
+        if (!isArray(clauses)) {
+            throw errors.ErrExtraShouldBeList;
+        }
+        query = await chainClauses(opts.model, clauses, ctx, query);
+    }
+    let instances = await core.query(bookshelf, opts.model, query).fetch(fetchOpts);
+    let check = await core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R);
+    if (!check) {
+        throw errors.ErrOperationNotAuthorized;
+    }
+    if (has(query, 'add_attr')) {
+        instances = await chainFuncs(ctx, instances, query.add_attr);
+    }
+    return instances;
+}
+
+async function createInstances(bookshelf, ctx, data, controller, path, opts, forbids) {
+    let modelCollection = bookshelf.Collection.extend({
+        model: opts.model
+    })
+    let res = await bookshelf.transaction(async trx => {
+        let emptyInstance = opts.model.forge();
+        let relationNames = getRelationNames(bookshelf, emptyInstance, opts.model);
+        let instances = await Promise.map(data, async (obj) => {
+            let attrs = omit(obj, relationNames);
+            let instance = opts.model.forge(attrs);
+            let check = await core.check(ctx, opts.identity.C, opts.admin.C, instance, opts.access.C);
+            if (!check) {
+                throw errors.ErrOperationNotAuthorized;
+            }
+            let savedInstance = await instance.save(null, {transacting: trx});
+            let relationPayload = pick(obj, relationNames);
+            for (var key in relationPayload) {
+                await modifyRelation(bookshelf, savedInstance, opts.model, key, relationPayload[key], trx);
+            }
+            return savedInstance;
+        })
+        return instances;
+    })
+    return res;
+}
+
+async function updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids) {
+    let instances = await core.query(bookshelf, opts.model, query).fetch();
+    let check = await core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U);
+    if (!check) {
+        throw errors.ErrOperationNotAuthorized;
+    }
+    let res = await bookshelf.transaction(async trx => {
+        let emptyInstance = opts.model.forge();
+        let relationNames = getRelationNames(bookshelf, emptyInstance, opts.model);
+        let attrs = omit(data, relationNames);
+        await instances.invokeThen('save', attrs, {transacting: trx, method: 'update', patch: true, require: true, validation: false});
+        let relationPayload = pick(data, relationNames);
+        await Promise.map(instances.toArray(), async instance => {
+            for (var key in relationPayload) {
+                await modifyRelation(bookshelf, instance, opts.model, key, relationPayload[key], trx);
+            }
+            return instance;
+        })
+        return instances;
+    })
+    return res;
+}
+
 function setupController(bookshelf, controller, path, opts, forbids) {
-    let knex = bookshelf.knex;
     let errHandler = function(err) {
         if (err instanceof errors.J2SError) {
             throw err;
@@ -75,11 +176,18 @@ function setupController(bookshelf, controller, path, opts, forbids) {
     }
 
     let getOne = async function (ctx, next) {
-        let instances = await opts.model.where('id', ctx.params.id).fetchAll();
-        let check = await core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R);
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
+        let query = {}
+        if (ctx.request.query.query) {
+            query = JSON.parse(ctx.request.query.query)
         }
+        if (!isPlainObject(query)) {
+            throw errors.ErrQueryShouldBeJsonObject;
+        }
+        if (has(query, 'where')) {
+            throw errors.ErrWhereKeywordWhenGetWithIdForbidden;
+        }
+        query.where = {id: ctx.params.id};
+        let instances = await getInstances(bookshelf, ctx, query, controller, path, opts, forbids);
         let instance = instances.toJSON()
         if (instance.length > 0) {
             instance = instance[0]
@@ -95,51 +203,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!isPlainObject(query)) {
             throw errors.ErrQueryShouldBeJsonObject;
         }
-        each(lodashKeys(query), function(key) {
-            if (includes(forbids, key)) {
-                throw errors.FnErrKeyForbidden(key);
-            }
-        })
-        let fetchOpts = {};
-        if (has(query, 'populate')) {
-            if (!isArray(query.populate)) {
-                throw errors.ErrPopulateShouldBeList;
-            }
-            let populate = map(query.populate, function(population) {
-                if (isPlainObject(population)) {
-                    let keys = lodashKeys(population)
-                    if (keys.length != 1) {
-                        throw errors.ErrPopulateObjectShouldHaveExactlyOneKey
-                    }
-                    let key = keys[0]
-                    let res = {}
-                    res[key] = function(builder) {
-                        core.builderQuery(knex, builder, population[key])
-                    }
-                    return res;
-                } else if (isString(population)){
-                    return population;
-                } else {
-                    throw errors.ErrPopulateElementShouldBeStringOrObject;
-                }
-            })
-            fetchOpts = {withRelated: populate}
-        }
-        if (has(query, 'add_clause')) {
-            let clauses = query.add_clause
-            if (!isArray(clauses)) {
-                throw errors.ErrExtraShouldBeList;
-            }
-            query = await chainClauses(opts.model, clauses, ctx, query);
-        }
-        let instances = await core.query(bookshelf, opts.model, query).fetch(fetchOpts);
-        let check = await core.check(ctx, opts.identity.R, opts.admin.R, instances, opts.access.R);
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
-        }
-        if (has(query, 'add_attr')) {
-            instances = await chainFuncs(ctx, instances, query.add_attr);
-        }
+        let instances = await getInstances(bookshelf, ctx, query, controller, path, opts, forbids);
         ctx.body = {data: instances}
     };
 
@@ -148,16 +212,8 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!isArray(data)) {
             data = [data]
         }
-        let modelCollection = bookshelf.Collection.extend({
-            model: opts.model
-        })
-        let instances = modelCollection.forge(data)
-        let check = await core.check(ctx, opts.identity.C, opts.admin.C, instances, opts.access.C);
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
-        }
-        let res = await instances.invokeThen('save');
-        ctx.body = {data: res}
+        let instances = await createInstances(bookshelf, ctx, data, controller, path, opts, forbids);
+        ctx.body = {data: instances};
     };
 
     let put = async function (ctx, next) {
@@ -169,12 +225,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!isPlainObject(data)) {
             throw errors.ErrDataShouldBeJsonObject;
         }
-        let instances = await core.query(bookshelf, opts.model, query).fetch();
-        let check = await core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U);
-        if (!check) {
-            throw errors.ErrOperationNotAuthorized;
-        }
-        let res = await instances.invokeThen('save', data, {method: 'update', patch: true});
+        let res = await updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids);
         ctx.body = {data: res}
     };
 

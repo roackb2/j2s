@@ -9,7 +9,6 @@ import forIn from 'lodash/forIn';
 import forEach from 'lodash/forEach';
 import has from 'lodash/has';
 import each from 'lodash/each';
-import { format } from 'util';
 import logger from './logging';
 import errors from './errors';
 
@@ -75,9 +74,9 @@ let addLikeClause = function (knex, builder, col, value, likeOp, logicOp) {
         builder = builder[methodMap.where[logicOp]](function() {
             let qb = this;
             each(value, function(str) {
-                let preparation = format('%s %s ?', col, likeOp);
+                let preparation = `${col} ${likeOp} ?`;
                 if (likeOp.indexOf('like') !== -1) {
-                    str = format('%%%s%%', str)
+                    str = `%%${str}%%`;
                 }
                 qb.orWhere(knex.raw(preparation, [str]));
             })
@@ -395,6 +394,7 @@ async function check(ctx, identityCB, adminCB, instances, rule) {
     if (!isArray(instances)) {
         instances = instances.toArray()
     }
+    // TODO: run checks in parallel
     for (var i = 0; i < instances.length; i++) {
         let instance = instances[i];
         if (isPlainObject(rule)) {
