@@ -51,6 +51,7 @@ and how you could setup j2s routes with access control,
 we assume that User has an one-to-many relation with Photo,
 User has an many-to-many relation to Book, and User may have zero or one Account,
 the Account model determines whether a user is administrator in its `is_admin` column.
+Other model are fore examples for following sections.
 
 ```javascript
 // model.js
@@ -78,6 +79,10 @@ const User = bookshelf.Model.extend({
     photo: function() {
         return this.belongsTo(Photo);
     },
+
+    comments: function() {
+        return this.hasMany(Comment);
+    }
 
     books: function() {
         return this.belongsToMany(Book)
@@ -110,12 +115,22 @@ const Book = bookshelf.Model.extend({
     }
 })
 
+const Comment = bookshelf.Model.extend({
+    tableName: 'comment',
+    hasTimestamps: true,
+
+    author: function() {
+        return this.belongsTo(User);
+    }
+})
+
 module.exports = {
     bookshelf: bookshelf,
     User: User,
     Photo: Photo,
     Book: Book,
-    Account: Account
+    Account: Account,
+    Comment: Comment
 }
 ```
 
@@ -297,7 +312,7 @@ j2s allow any valid koa middleware to be run sequentially before running the CRU
     ```
 
     There is a shortcut to get one instance using id, above query is equal to
-    `GET hostname/api/users/1`, but this only applies to GET method, and the resulting data would only
+    `GET hostname/api/users/1`, but this only applies to GET method, you could also add the `query` query parameters to it, like `GET hostname/api/users/1?query={"populate":["comments"]}`, and the resulting data would only
     contains an JSON object instead of a list, which is like:
 
     ```json
@@ -308,7 +323,14 @@ j2s allow any valid koa middleware to be run sequentially before running the CRU
         "email": "test1@gmail.com",
         "password": "1234",
         "created_at": "2016-09-15T05:44:45.678Z",
-        "updated_at": "2016-09-17T09:20:21.672Z"
+        "updated_at": "2016-09-17T09:20:21.672Z",
+        "comments": [{
+            "id": 1,
+            "content": "some comment"
+        }, {
+            "id": 2,
+            "content": "some other comment"
+        }]
       }
     }
     ```
@@ -733,6 +755,48 @@ then the server may response something like following:
 }
 ```
 
+### Relation Manipulation
+
+When using `POST` to create objects or `PUT` to update objects, you could add, remove, replace or create some relations, like `PUT hostname/api/users` with following body:
+
+```json
+{
+	"query": {
+		"where": {
+			"username": "test1"
+		}
+	},
+	"data": {
+        "account": 1,
+        "photo": {
+            "url": "https://some.where.com"
+        },
+		"comments": {
+			"remove": [1,2,3],
+			"add": [4,5],
+			"create": [{
+				"content": "test-comment-1",
+			}, {
+				"content": "test-comment-2",
+			}]
+		}
+	}
+}
+```
+
+would look for user who's username is 'test1', sets its account to the one with id equal to 1, create a photo with given payload for the user, cancel the relations with comments with id 1, 2, 3, and add relations with comments with id 4 and 5, then create two comments for this user.
+
+For one-to-one relations, including `hasOne`, `belongsTo`, `morphOne`, `morphTo`, the value for the relation name key could be number or JSON object. if number is given, j2s would look for the target relation and sets the foreign key on the target object or the queried instance, depending on the relation type. If object is given, j2s would create a new object and relates the two instances.
+
+
+For one-to-many and many-to-many relations, including `hasMany`, `belongsTo`, `morphMany`, `belongsToMany`, the value for a relation name is an JSON object, contains following keys, each one is optional:
+
+- `add`: value is array of ids, target objects should be existing, this only sets the foreign key on the target objects.
+- `remove`: value is array of ids, target relation should be existing, this only unset the foreign key on the target objects.
+- `create`: value is array of objects, this will create some objects and build the relations.
+- `replace`: value is array of ids, all existing relations would be cancelled and new relations would be added, its equivalent to calling `remove` with all existing relations then call `add` to add some new relations.
+
+> NOTE: you could not have the key `replace` in the relation payload along with other keys at the same time, but you could have `add`, `remove`, `create` all together in the relation payload.
 
 ### Advanced Examples
 

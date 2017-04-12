@@ -39,7 +39,6 @@ export async function modifyRelation(bookshelf, instance, model, relationName, p
                 method: 'update',
                 patch: true,
                 require: true,
-                validation: false
             });
         } else if (isPlainObject(payload)) {
             payload[foreignKey] = parentIdAttribute;
@@ -70,8 +69,6 @@ export async function modifyRelation(bookshelf, instance, model, relationName, p
             method: 'update',
             patch: true,
             require: true,
-            validation: false
-
         });
     } else if (relationType === 'hasMany' || relationType === 'morphMany') {
         if (!isPlainObject(payload)) {
@@ -92,8 +89,6 @@ export async function modifyRelation(bookshelf, instance, model, relationName, p
                     method: 'update',
                     patch: true,
                     require: true,
-                    validation: false
-
                 })
             }
         }
@@ -112,8 +107,6 @@ export async function modifyRelation(bookshelf, instance, model, relationName, p
                     method: 'update',
                     patch: true,
                     require: true,
-                    validation: false
-
                 })
             }
         }
@@ -141,8 +134,6 @@ export async function modifyRelation(bookshelf, instance, model, relationName, p
                 method: 'update',
                 patch: true,
                 require: true,
-                validation: false
-
             });
             for (let i = 0; i < payload.replace.length; i++) {
                 let id = payload.replace[i];
@@ -155,13 +146,9 @@ export async function modifyRelation(bookshelf, instance, model, relationName, p
                     method: 'update',
                     patch: true,
                     require: true,
-                    validation: false
-
                 })
             }
-
         }
-
     } else if (relationType === 'belongsToMany') {
         if (!isPlainObject(payload)) {
             throw errors.FnErrValueShouldBeNumberOrObject(relationName);
