@@ -127,7 +127,7 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
         let instances = await Promise.map(data, async (obj) => {
             let attrs = omit(obj, relationNames);
             let instance = opts.model.forge(attrs);
-            let check = await core.check(ctx, opts.identity.C, opts.admin.C, instance, opts.access.C);
+            let check = await core.check(ctx, opts.identity.C, opts.admin.C, [instance], opts.access.C);
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
