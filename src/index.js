@@ -5,6 +5,7 @@ import isString from 'lodash/isString';
 import isPlainObject from 'lodash/isPlainObject';
 import isArray from 'lodash/isArray';
 import isNumber from 'lodash/isNumber';
+import isEmpty from 'lodash/isEmpty';
 import isNil from 'lodash/isNil';
 import includes from 'lodash/includes';
 import forIn from 'lodash/forIn';
@@ -153,7 +154,9 @@ async function updateInstances(bookshelf, ctx, query, data, controller, path, op
         let emptyInstance = opts.model.forge();
         let relationNames = getRelationNames(bookshelf, emptyInstance, opts.model);
         let attrs = omit(data, relationNames);
-        await instances.invokeThen('save', attrs, {transacting: trx, method: 'update', patch: true, require: true});
+        if (!isEmpty(attrs)) {
+            await instances.invokeThen('save', attrs, {transacting: trx, method: 'update', patch: true, require: true});
+        }
         let relationPayload = pick(data, relationNames);
         await Promise.map(instances.toArray(), async instance => {
             for (var key in relationPayload) {
