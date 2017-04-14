@@ -154,8 +154,8 @@ module.exports =  {
         middlewares: [], // ignore any middlewares
         access: {
             // allow updates on books only when the book is written by the request user
-            U: (identity, instance) => {
-                // here, 'identity' represents the request User, 'instance' represents a queried Book
+            U: (identity, instance, ctx) => {
+                // here, 'identity' represents the request User, 'instance' represents a queried Book, and `ctx` is an optional Koa request context object.
                 return identity.books().fetch().then(function(books) {
                     return books.some(function(book) {
                         return book.id == instance.id

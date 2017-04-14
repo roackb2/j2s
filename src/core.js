@@ -1,5 +1,6 @@
 'use strict';
 
+import Promise from 'bluebird';
 import isString from 'lodash/isString';
 import isArray from 'lodash/isArray';
 import isPlainObject from 'lodash/isPlainObject';
@@ -404,7 +405,7 @@ async function check(ctx, identityCB, adminCB, instances, rule) {
                 }
             }
         } else if (isFunction(rule)) {
-            return rule(identity, instance);
+            return rule(identity, instance, ctx);
         } else {
             throw errors.FnErrUnknowRuleType(rule);
         }
