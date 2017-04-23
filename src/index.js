@@ -134,7 +134,13 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
             }
             let savedInstance = await instance.save(null, {transacting: trx});
             let relationPayload = pick(obj, relationNames);
+            if (isEmpty(relationPayload)) {
+                return savedInstance;
+            }
             for (var key in relationPayload) {
+                if (isEmpty(relationPayload[key])) {
+                    continue;
+                }
                 await modifyRelation(bookshelf, savedInstance, opts.model, key, relationPayload[key], trx);
             }
             return savedInstance;
@@ -158,8 +164,14 @@ async function updateInstances(bookshelf, ctx, query, data, controller, path, op
             await instances.invokeThen('save', attrs, {transacting: trx, method: 'update', patch: true, require: true});
         }
         let relationPayload = pick(data, relationNames);
+        if (isEmpty(relationPayload)) {
+            return instances;
+        }
         await Promise.map(instances.toArray(), async instance => {
             for (var key in relationPayload) {
+                if (isEmpty(relationPayload[key])) {
+                    return instance;
+                }
                 await modifyRelation(bookshelf, instance, opts.model, key, relationPayload[key], trx);
             }
             return instance;

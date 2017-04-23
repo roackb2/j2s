@@ -12,8 +12,6 @@ export function getRelationNames(bookshelf, instance, model) {
     for (let name of Object.getOwnPropertyNames(Object.getPrototypeOf(instance))) {
         let method = instance[name];
         if (!(method instanceof Function) || method === model) continue;
-        let relation = instance[name]();
-        if (!relation instanceof bookshelf.Model || !relation instanceof bookshelf.Collection || !relation.relatedData) continue;
         names.push(name)
     }
     return names
