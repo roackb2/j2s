@@ -152,6 +152,9 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
 
 async function updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids) {
     let instances = await core.query(bookshelf, opts.model, query).fetch({require: true});
+    if (!instances || instances.length == 0) {
+        throw errors.ErrResourceNotFound;
+    }
     let check = await core.check(ctx, opts.identity.U, opts.admin.U, instances, opts.access.U);
     if (!check) {
         throw errors.ErrOperationNotAuthorized;
