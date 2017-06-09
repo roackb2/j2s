@@ -80,16 +80,27 @@ async function getInstances(bookshelf, ctx, query, controller, path, opts, forbi
         if (!isArray(query.populate)) {
             throw errors.ErrPopulateShouldBeList;
         }
-        let populate = map(query.populate, function(population) {
+        let populate = await Promise.map(query.populate, async function(population) {
             if (isPlainObject(population)) {
                 let keys = lodashKeys(population)
                 if (keys.length != 1) {
                     throw errors.ErrPopulateObjectShouldHaveExactlyOneKey
                 }
                 let key = keys[0]
+                let populateQuery = population[key];
+                let emptyInstance = opts.model.forge();
+                let relation = emptyInstance[key]();
+                let targetModel = relation.relatedData.target;
                 let res = {}
+                if (has(populateQuery, 'add_clause')) {
+                    let clauses = populateQuery.add_clause;
+                    if (!isArray(clauses)) {
+                        throw errors.ErrAddClauseShouldBeList
+                    }
+                    populateQuery = await chainClauses(targetModel, clauses, ctx, populateQuery)
+                }
                 res[key] = function(builder) {
-                    core.builderQuery(bookshelf.knex, builder, population[key])
+                    core.builderQuery(bookshelf.knex, builder, populateQuery)
                 }
                 return res;
             } else if (isString(population)){
@@ -103,7 +114,7 @@ async function getInstances(bookshelf, ctx, query, controller, path, opts, forbi
     if (has(query, 'add_clause')) {
         let clauses = query.add_clause
         if (!isArray(clauses)) {
-            throw errors.ErrExtraShouldBeList;
+            throw errors.ErrAddClauseShouldBeList;
         }
         query = await chainClauses(opts.model, clauses, ctx, query);
     }
