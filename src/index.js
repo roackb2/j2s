@@ -88,38 +88,45 @@ async function getInstances(bookshelf, ctx, query, controller, path, opts, forbi
                 }
                 let key = keys[0]
                 let populateQuery = population[key];
-                let relation = opts.model.forge()[key]();
-                let relatedData = relation.relatedData;
-                let targetModel = relatedData.target;
-                let targetTable = targetModel.forge().tableName;
-                let foreignKey = relatedData.foreignKey;
-                let res = {}
-                if (has(populateQuery, 'add_clause')) {
-                    let clauses = populateQuery.add_clause;
-                    if (!isArray(clauses)) {
-                        throw errors.ErrAddClauseShouldBeList
-                    }
-                    populateQuery = await chainClauses(targetModel, clauses, ctx, populateQuery)
+                let res = {};
+                res[key] = function(builder) {
+                    core.builderQuery(bookshelf.knex, builder, populateQuery);
                 }
-                if ((has(populateQuery, 'limit') || has(populateQuery, 'offset')) && has(populateQuery, 'order_by')) {
-                    let limit = populateQuery.limit;
-                    let offset = populateQuery.offset || 0;
-                    let orderBy = populateQuery.order_by;
-                    delete populateQuery.limit;
-                    delete populateQuery.offset;
-                    res[key] = function(builder) {
-                        builder.with(targetTable, function(qb) {
-                            core.builderQuery(bookshelf.knex, qb, populateQuery);
-                            qb.select(bookshelf.knex.raw(`*, rank() over (partition by ${foreignKey} order by ${orderBy[0]} ${orderBy[1]}) as rank from ${targetTable}`))
-                        }).select('*').from(targetTable);
-                        builder.where('rank', '>', offset);
-                        if (limit) {
-                            builder.andWhere('rank', '<=', limit + offset);
-                        }
+                if (has(populateQuery, 'add_clause') || has(populateQuery, 'limit') || has(populateQuery, 'offset')) {
+                    let relations = key.split('.');
+                    let targetModel = opts.model;
+                    let relatedData = null;
+                    while (relations.length > 0) {
+                        let relationName = relations.shift();
+                        let relation = targetModel.forge()[relationName]();
+                        relatedData = relation.relatedData;
+                        targetModel = relatedData.target;
                     }
-                } else {
-                    res[key] = function(builder) {
-                        core.builderQuery(bookshelf.knex, builder, populateQuery);
+                    let targetTable = targetModel.forge().tableName;
+                    let foreignKey = relatedData.foreignKey;
+                    if (has(populateQuery, 'add_clause')) {
+                        let clauses = populateQuery.add_clause;
+                        if (!isArray(clauses)) {
+                            throw errors.ErrAddClauseShouldBeList
+                        }
+                        populateQuery = await chainClauses(targetModel, clauses, ctx, populateQuery)
+                    }
+                    if ((has(populateQuery, 'limit') || has(populateQuery, 'offset')) && has(populateQuery, 'order_by')) {
+                        let limit = populateQuery.limit;
+                        let offset = populateQuery.offset || 0;
+                        let orderBy = populateQuery.order_by;
+                        delete populateQuery.limit;
+                        delete populateQuery.offset;
+                        res[key] = function(builder) {
+                            builder.with(targetTable, function(qb) {
+                                core.builderQuery(bookshelf.knex, qb, populateQuery);
+                                qb.select(bookshelf.knex.raw(`*, rank() over (partition by ${foreignKey} order by ${orderBy[0]} ${orderBy[1]}) as rank from ${targetTable}`))
+                            }).select('*').from(targetTable);
+                            builder.where('rank', '>', offset);
+                            if (limit) {
+                                builder.andWhere('rank', '<=', limit + offset);
+                            }
+                        }
                     }
                 }
                 return res;

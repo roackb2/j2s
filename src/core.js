@@ -359,7 +359,7 @@ function builderQuery(knex, builder, clauses) {
         }
         builder = keywords[key](knex, builder, value, key)
     })
-    logger.debug('builder query statement: %s', builder.toString())
+    logger.debug(`builder query statement: ${builder.toString()}`)
     return builder
 }
 
@@ -371,7 +371,7 @@ function query(bookshelf, model, clauses) {
     })
     let m = collection.query(function(builder) {
         builder = builderQuery(bookshelf.knex, builder, clauses)
-        logger.debug('query statement: %s', builder.toString())
+        logger.debug(`query statement: ${builder.toString()}`)
     })
     return m
 }
