@@ -88,9 +88,11 @@ async function getInstances(bookshelf, ctx, query, controller, path, opts, forbi
                 }
                 let key = keys[0]
                 let populateQuery = population[key];
-                let emptyInstance = opts.model.forge();
-                let relation = emptyInstance[key]();
-                let targetModel = relation.relatedData.target;
+                let relation = opts.model.forge()[key]();
+                let relatedData = relation.relatedData;
+                let targetModel = relatedData.target;
+                let targetTable = targetModel.forge().tableName;
+                let foreignKey = relatedData.foreignKey;
                 let res = {}
                 if (has(populateQuery, 'add_clause')) {
                     let clauses = populateQuery.add_clause;
@@ -99,8 +101,26 @@ async function getInstances(bookshelf, ctx, query, controller, path, opts, forbi
                     }
                     populateQuery = await chainClauses(targetModel, clauses, ctx, populateQuery)
                 }
-                res[key] = function(builder) {
-                    core.builderQuery(bookshelf.knex, builder, populateQuery)
+                if ((has(populateQuery, 'limit') || has(populateQuery, 'offset')) && has(populateQuery, 'order_by')) {
+                    let limit = populateQuery.limit;
+                    let offset = populateQuery.offset || 0;
+                    let orderBy = populateQuery.order_by;
+                    delete populateQuery.limit;
+                    delete populateQuery.offset;
+                    res[key] = function(builder) {
+                        builder.with(targetTable, function(qb) {
+                            core.builderQuery(bookshelf.knex, qb, populateQuery);
+                            qb.select(bookshelf.knex.raw(`*, rank() over (partition by ${foreignKey} order by ${orderBy[0]} ${orderBy[1]}) as rank from ${targetTable}`))
+                        }).select('*').from(targetTable);
+                        builder.where('rank', '>', offset);
+                        if (limit) {
+                            builder.andWhere('rank', '<=', limit + offset);
+                        }
+                    }
+                } else {
+                    res[key] = function(builder) {
+                        core.builderQuery(bookshelf.knex, builder, populateQuery);
+                    }
                 }
                 return res;
             } else if (isString(population)){
