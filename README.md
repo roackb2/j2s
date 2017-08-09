@@ -73,19 +73,19 @@ const User = bookshelf.Model.extend({
     hasTimestamps: true,
 
     account: function() {
-        return this.hasOne(Account);
+        return this.hasOne(Account, 'user_id');
     }
 
     photo: function() {
-        return this.belongsTo(Photo);
+        return this.belongsTo(Photo, 'photo_id');
     },
 
     comments: function() {
-        return this.hasMany(Comment);
+        return this.hasMany(Comment, 'user_id');
     }
 
     books: function() {
-        return this.belongsToMany(Book)
+        return this.belongsToMany(Book, 'user_book', 'user_id', 'book_id')
     }
 })
 
@@ -93,7 +93,7 @@ const Account = bookshelf.Model.extend({
     tableName: 'account',
 
     user: function() {
-        return this.belongsTo(User);
+        return this.belongsTo(User, 'user_id');
     }
 })
 
@@ -102,7 +102,7 @@ const Photo = bookshelf.Model.extend({
     hasTimestamps: true,
 
     uploader: function() {
-        return this.belongsTo(User);
+        return this.belongsTo(User, 'user_id');
     }
 })
 
@@ -111,7 +111,7 @@ const Book = bookshelf.Model.extend({
     hasTimestamps: true,
 
     authors: function() {
-        return this.belongsToMany(User)
+        return this.belongsToMany(User, 'user_book', 'book_id', 'user_id')
     }
 })
 
@@ -120,7 +120,7 @@ const Comment = bookshelf.Model.extend({
     hasTimestamps: true,
 
     author: function() {
-        return this.belongsTo(User);
+        return this.belongsTo(User, 'user_id');
     }
 })
 
@@ -133,6 +133,8 @@ module.exports = {
     Comment: Comment
 }
 ```
+
+> NOTE: For access control on relation manipulation to work properly, the `Target`, `foreignKey` and `otherKey` must be set on relations.
 
 ```javascript
 // routes.js

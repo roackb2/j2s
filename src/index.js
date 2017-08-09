@@ -14,6 +14,7 @@ import each from 'lodash/each';
 import has from 'lodash/has';
 import omit from 'lodash/omit';
 import pick from 'lodash/pick';
+import keys from 'lodash/keys';
 import { default as lodashKeys } from 'lodash/keys';
 import map from 'lodash/map';
 import Router from 'koa-router';
@@ -156,7 +157,7 @@ async function getInstances(bookshelf, ctx, query, controller, path, opts, forbi
     return instances;
 }
 
-async function createInstances(bookshelf, ctx, data, controller, path, opts, forbids) {
+async function createInstances(bookshelf, ctx, data, controller, path, opts, forbids, allOpts) {
     let modelCollection = bookshelf.Collection.extend({
         model: opts.model
     })
@@ -179,7 +180,7 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
                 if (isEmpty(relationPayload[key])) {
                     continue;
                 }
-                await modifyRelation(bookshelf, savedInstance, opts.model, key, relationPayload[key], trx);
+                await modifyRelation(ctx, bookshelf, savedInstance, opts.model, key, relationPayload[key], trx, allOpts);
             }
             return savedInstance;
         })
@@ -188,7 +189,7 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
     return res;
 }
 
-async function updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids) {
+async function updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids, allOpts) {
     let instances = await core.query(bookshelf, opts.model, query).fetch({require: true});
     if (!instances || instances.length == 0) {
         throw errors.ErrResourceNotFound;
@@ -210,10 +211,10 @@ async function updateInstances(bookshelf, ctx, query, data, controller, path, op
         }
         await Promise.map(instances.toArray(), async instance => {
             for (var key in relationPayload) {
-                if (isEmpty(relationPayload[key])) {
+                if (isNil(relationPayload[key])) {
                     return instance;
                 }
-                await modifyRelation(bookshelf, instance, opts.model, key, relationPayload[key], trx);
+                await modifyRelation(ctx, bookshelf, instance, opts.model, key, relationPayload[key], trx, allOpts);
             }
             return instance;
         })
@@ -222,7 +223,8 @@ async function updateInstances(bookshelf, ctx, query, data, controller, path, op
     return res;
 }
 
-function setupController(bookshelf, controller, path, opts, forbids) {
+function setupController(bookshelf, controller, path, allOpts, forbids) {
+    let opts = allOpts[path];
     let errHandler = function(err) {
         if (err instanceof errors.J2SError) {
             throw err;
@@ -268,7 +270,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!isArray(data)) {
             data = [data]
         }
-        let instances = await createInstances(bookshelf, ctx, data, controller, path, opts, forbids);
+        let instances = await createInstances(bookshelf, ctx, data, controller, path, opts, forbids, allOpts);
         ctx.body = {data: instances};
     };
 
@@ -281,7 +283,7 @@ function setupController(bookshelf, controller, path, opts, forbids) {
         if (!isPlainObject(data)) {
             throw errors.ErrDataShouldBeJsonObject;
         }
-        let res = await updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids);
+        let res = await updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids, allOpts);
         ctx.body = {data: res}
     };
 
@@ -351,6 +353,8 @@ function resolveOptions(defaultOpts, route) {
     } else {
         res.model = route;
     }
+    let emptyInstance = res.model.forge();
+    res.tableName = emptyInstance.tableName;
     return res;
 }
 
@@ -363,9 +367,13 @@ function J2S(defaultOpts) {
     const controller = new Router({
         prefix: prefix
     });
+    let allResolvedOpts = {}
+    delete routes.default
     forEach(routes, function(route, path) {
-        let resolvedOpts = resolveOptions(defaultOpts, route);
-        setupController(bookshelf, controller, path, resolvedOpts, forbids);
+        allResolvedOpts[path] = resolveOptions(defaultOpts, route);
+    })
+    forEach(keys(routes), function(path) {
+        setupController(bookshelf, controller, path, allResolvedOpts, forbids);
     })
     return controller;
 }

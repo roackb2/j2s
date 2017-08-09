@@ -1,11 +1,11 @@
 {
     "name": "j2s",
-    "version": "1.3.0",
+    "version": "1.3.1",
     "description": "JSON to SQL, build RESTful API server on the fly, which accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable middlewares",
     "main": "index.js",
     "scripts": {
-        "watch": "babel -w src -d dist",
-        "build": "babel src -d dist",
+        "watch": "babel -w src -d dist --source-maps inline",
+        "build": "babel src -d dist --source-maps inline",
         "prepublish": "npm run build",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
