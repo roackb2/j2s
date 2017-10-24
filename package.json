@@ -29,7 +29,8 @@
         "GraphQL alternative",
         "Parse alternative",
         "Parse relational",
-        "Swagger alternative"
+        "Swagger alternative",
+        "resource oriented architecture"
     ],
     "author": "Jay Liang <roackb2@gmail.com> (https://www.facebook.com/profile.php?id=1391931108)",
     "license": "ISC",
