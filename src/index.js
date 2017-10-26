@@ -171,7 +171,7 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
             if (!check) {
                 throw errors.ErrOperationNotAuthorized;
             }
-            let savedInstance = await instance.save(null, {transacting: trx});
+            let savedInstance = await instance.save(null, {transacting: trx, method: 'insert', require: true, patch: false});
             let relationPayload = pick(obj, relationNames);
             if (isEmpty(relationPayload)) {
                 return savedInstance;
