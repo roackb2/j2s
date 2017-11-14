@@ -190,6 +190,9 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
 }
 
 async function updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids, allOpts) {
+    if (isEmpty(query) || isEmpty(query.where)) {
+        throw errors.ErrNoQueryOrWhereSupplied;
+    }
     let instances = await core.query(bookshelf, opts.model, query).fetch({require: true});
     if (!instances || instances.length == 0) {
         throw errors.ErrResourceNotFound;
