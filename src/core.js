@@ -10,6 +10,7 @@ import forIn from 'lodash/forIn';
 import forEach from 'lodash/forEach';
 import has from 'lodash/has';
 import each from 'lodash/each';
+import map from 'lodash/map';
 import logger from './logging';
 import errors from './errors';
 
@@ -215,15 +216,31 @@ function parseConditions(knex, builder, conds, op) {
 
                 } else {
                     // for simple 'column equals to value' scenario, simply add a raw preparation
-                    let preparation = knex.raw('?? = ?', [k, v]);
+                    let keyBinding = '??';
+                    let valueBinding = '?';
+                    let bindings = [k, v];
+                    if (isString(k) && k.indexOf('->') != -1) {
+                        // user want to query with json or jsonb column attributes if key is like 'jsonColumn->someAttr'
+                        let colChain = k.split('->');
+                        keyBinding = map(colChain, (col, index) => {
+                            if (index == 0) {
+                                return "??"
+                            }
+                            return "?"
+                        }).join('->').replace(/->\?$/, '->>?'); // it'll be like '??->?->?->>?'
+                        bindings = colChain.concat(v);
+                        // bindings is prepanded with json attribute names, like ['jsonCol', 'firstLayerAttr', 'secondLayerAttr', 'value']
+                    }
                     if (isString(v)) {
                         let words = v.split('.');
                         let reg = /^([A-Za-z]|[0-9]|_|\$)+$/
                         if (words.length == 2 && words[0].match(reg) && words[1].match(reg)) {
-                            // value is an identifier
-                            preparation = knex.raw('?? = ??', [k, v])
+                            // value is an identifier, like 'table_name1.columnName2'
+                            valueBinding = '??'
                         }
                     }
+                    let preparation = knex.raw(`${keyBinding} = ${valueBinding}`, bindings);
+                    console.log(preparation.toString())
                     builder = builder[methodMap.where[op]](preparation)
                 }
             } else if (parts.length == 2) {
