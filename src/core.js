@@ -240,7 +240,6 @@ function parseConditions(knex, builder, conds, op) {
                         }
                     }
                     let preparation = knex.raw(`${keyBinding} = ${valueBinding}`, bindings);
-                    console.log(preparation.toString())
                     builder = builder[methodMap.where[op]](preparation)
                 }
             } else if (parts.length == 2) {
