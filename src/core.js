@@ -312,7 +312,7 @@ const keywords = {
         return builder.select.apply(builder, value);
     },
     'from': (knex, builder, value, key) => {
-        return builder.from.apply(builder, value);
+        return builder.from(value);
     },
     'limit': (knex, builder, value, key) => {
         return builder.limit(value);
