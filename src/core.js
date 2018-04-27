@@ -311,6 +311,9 @@ const keywords = {
     'select': (knex, builder, value, key) => {
         return builder.select.apply(builder, value);
     },
+    'from': (knex, builder, value, key) => {
+        return builder.from.apply(builder, value);
+    },
     'limit': (knex, builder, value, key) => {
         return builder.limit(value);
     },
