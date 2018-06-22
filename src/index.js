@@ -8,6 +8,7 @@ import isNumber from 'lodash/isNumber';
 import isEmpty from 'lodash/isEmpty';
 import isNil from 'lodash/isNil';
 import includes from 'lodash/includes';
+import uniq from 'lodash/uniq';
 import forIn from 'lodash/forIn';
 import forEach from 'lodash/forEach';
 import each from 'lodash/each';
@@ -161,7 +162,8 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
     let modelCollection = bookshelf.Collection.extend({
         model: opts.model
     })
-    let res = await bookshelf.transaction(async trx => {
+    let relationKeys = [];
+    let createdInstances = await bookshelf.transaction(async trx => {
         let emptyInstance = opts.model.forge();
         let relationNames = getRelationNames(bookshelf, emptyInstance, opts.model);
         let instances = await Promise.map(data, async (obj) => {
@@ -177,6 +179,7 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
                 return savedInstance;
             }
             for (var key in relationPayload) {
+                relationKeys.push(key);
                 if (isEmpty(relationPayload[key])) {
                     continue;
                 }
@@ -184,9 +187,14 @@ async function createInstances(bookshelf, ctx, data, controller, path, opts, for
             }
             return savedInstance;
         })
-        return instances;
+        return opts.model.collection(instances);
     })
-    return res;
+    relationKeys = uniq(relationKeys);
+    if (relationKeys.length != 0) {
+        // refresh after transaction
+        await createdInstances.invokeThen('refresh', {withRelated: relationKeys});
+    }
+    return createdInstances;
 }
 
 async function updateInstances(bookshelf, ctx, query, data, controller, path, opts, forbids, allOpts) {
@@ -201,18 +209,19 @@ async function updateInstances(bookshelf, ctx, query, data, controller, path, op
     if (!check) {
         throw errors.ErrOperationNotAuthorized;
     }
-    let res = await bookshelf.transaction(async trx => {
-        let emptyInstance = opts.model.forge();
-        let relationNames = getRelationNames(bookshelf, emptyInstance, opts.model);
-        let attrs = omit(data, relationNames);
+    let emptyInstance = opts.model.forge();
+    let relationNames = getRelationNames(bookshelf, emptyInstance, opts.model);
+    let attrs = omit(data, relationNames);
+    let relationPayload = pick(data, relationNames);
+    let relationKeys = lodashKeys(relationPayload);
+    let modifiedInstances = await bookshelf.transaction(async trx => {
         if (!isEmpty(attrs)) {
             await instances.invokeThen('save', attrs, {transacting: trx, method: 'update', patch: true, require: true});
         }
-        let relationPayload = pick(data, relationNames);
         if (isEmpty(relationPayload)) {
             return instances;
         }
-        await Promise.map(instances.toArray(), async instance => {
+        let insts = await Promise.map(instances.toArray(), async instance => {
             for (var key in relationPayload) {
                 if (isNil(relationPayload[key])) {
                     return instance;
@@ -221,9 +230,13 @@ async function updateInstances(bookshelf, ctx, query, data, controller, path, op
             }
             return instance;
         })
-        return instances;
+        return opts.model.collection(insts);
     })
-    return res;
+    if (!isEmpty(relationPayload)) {
+        // refresh after transaction
+        await modifiedInstances.invokeThen('refresh', ({withRelated: relationKeys}));
+    }
+    return modifiedInstances;
 }
 
 function setupController(bookshelf, controller, path, allOpts, forbids) {
