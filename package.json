@@ -1,6 +1,6 @@
 {
     "name": "j2s",
-    "version": "1.3.9",
+    "version": "1.4.0",
     "description": "JSON to SQL, build RESTful API server on the fly, which accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable middlewares",
     "main": "index.js",
     "scripts": {
