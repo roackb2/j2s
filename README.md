@@ -1,5 +1,7 @@
 # j2s
 
+> NOTE: since version 2.0.0, you have to use `new J2s().controller` to get the koa router instance. the J2S constructor will no longer return controller instance anymore.
+
 JSON to SQL, build RESTful API server on the fly, which accepts JSON describing SQL query statements, and do CRUD accordingly, with configurable access control & pluggable middlewares.
 
 * Tired of creating API every time that front-end requires new feature?
