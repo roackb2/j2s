@@ -308,10 +308,28 @@ const keywords = {
     'cross_join': (knex, builder, value, key) => {
         return builder.crossJoin(value)
     },
+    'union': (knex, builder, value, key) => {
+        if (!isArray(value)) {
+            value = [value];
+        }
+        return builder.union(map(value, clause => {
+            return function() {
+                builderQuery(knex, this, clause)
+            }
+        }), true);
+    },
+    'union_all': (knex, builder, value, key) => {
+        return builder.unionAll(function() {
+            builderQuery(knex, this, value)
+        }, true);
+    },
     'select': (knex, builder, value, key) => {
         return builder.select.apply(builder, value);
     },
     'from': (knex, builder, value, key) => {
+        if (isPlainObject(value)) {
+            return builder.from(builderQuery(knex, knex.queryBuilder(), value))
+        }
         return builder.from(value);
     },
     'limit': (knex, builder, value, key) => {
@@ -320,12 +338,14 @@ const keywords = {
     'offset': (knex, builder, value, key) => {
         return builder.offset(value);
     },
+    'as': (knex, builder, value, key) => {
+        return builder.as(value);
+    },
     'group_by': (knex, builder, value, key) => {
         return builder.groupBy(value);
     },
     'order_by': (knex, builder, value, key) => {
         if (!isArray(value)) {
-            value = [value];
             throw errors.ErrOrderByShouldBeList;
         }
         if (value.length > 2) {

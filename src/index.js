@@ -147,6 +147,10 @@ class J2S {
         return errors;
     }
 
+    static get builderQuery() {
+        return core.builderQuery;
+    }
+
     // setup all the controllers for each routes
     setupController (path) {
         let j2s = this;
