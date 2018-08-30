@@ -10,6 +10,7 @@ import forIn from 'lodash/forIn';
 import forEach from 'lodash/forEach';
 import has from 'lodash/has';
 import each from 'lodash/each';
+import every from 'lodash/every';
 import map from 'lodash/map';
 import logger from './logging';
 import errors from './errors';
@@ -347,6 +348,15 @@ const keywords = {
     'order_by': (knex, builder, value, key) => {
         if (!isArray(value)) {
             throw errors.ErrOrderByShouldBeList;
+        }
+        // multiple order by
+        if (every(value, elem => {
+            return isArray(elem) && elem.length <= 2;
+        })) {
+            each(value, elem => {
+                builder.orderBy.apply(builder, elem)
+            })
+            return builder
         }
         if (value.length > 2) {
             throw errors.ErrOrderByLengthShouldBeTwo;

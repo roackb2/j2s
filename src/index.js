@@ -15,6 +15,7 @@ import each from 'lodash/each';
 import has from 'lodash/has';
 import omit from 'lodash/omit';
 import pick from 'lodash/pick';
+import find from 'lodash/find';
 import keys from 'lodash/keys';
 import { default as lodashKeys } from 'lodash/keys';
 import map from 'lodash/map';
@@ -149,6 +150,16 @@ class J2S {
 
     static get builderQuery() {
         return core.builderQuery;
+    }
+
+    getOpts(path) {
+        return this.allResolvedOpts[path];
+    }
+
+    getOptsWithModel(model) {
+        return find(this.allResolvedOpts, opt => {
+            return opt.model === model;
+        })
     }
 
     // setup all the controllers for each routes

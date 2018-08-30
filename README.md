@@ -1,6 +1,24 @@
 # j2s
 
+
+# Agenda
+* [Introduction](#introduction)
+* [Usage](#usage)
+    * [Access control](#access-control)
+    * [Middlewares](#middlewares)
+    * [Basic Query Examples](#basic-query-examples)
+    * [Query Syntax](#query-syntax)
+    * [Where Conditions Suffixes](#where-conditions-suffixes)
+    * [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
+        * [`add_attr`](#add_attr)
+        * [`add_clause`](#add_clause)
+    * [Relation Manipulation](#relation-manipulation)
+    * [Advanced Examples](#advanced-examples)
+    * [Use J2S Internal Methods](use-j2s-internal-methods)
+
 > NOTE: since version 2.0.0, you have to use `new J2s().controller` to get the koa router instance. the J2S constructor will no longer return controller instance anymore.
+
+# Introduction
 
 JSON to SQL, build RESTful API server on the fly, which accepts JSON describing SQL query statements, and do CRUD accordingly, with configurable access control & pluggable middlewares.
 
@@ -217,12 +235,13 @@ const options = {
     },  // optional, the admin callback allows some user to bypass all access control rules
 }
 const j2s = new J2S(options)
+const controller = j2s.controller
 
 const Koa = require('koa');
 const app = new Koa();
 
-app.use(j2s.routes());
-app.use(j2s.allowedMethods());
+app.use(controller.routes());
+app.use(controller.allowedMethods());
 ```
 
 ### Access control
@@ -498,22 +517,36 @@ Available top level keys are:
     ```json
     ["id AS user_id", "username"]
     ```
-3. `order_by`: order the results by a columns, desc, or asc,
+3. `from`: specifies which table to select from. Usually you won't need this, because the table to select from will be specified by resource path, but you might need this in a subquery.
+    value example:
+    ```json
+    "user"
+    ```
+4. `order_by`: order the results by a columns, desc, or asc,
     value example:
     ```json
     ["id", "desc"]
     ```
-4. `limit`: limit the query result to certain number,
+    You could also do multiple column order by as following:
+    ```json
+    [["comment_count", "desc"], ["created_at", "desc"]]
+    ```
+5. `limit`: limit the query result to certain number,
     value example:
     ```json
     10
     ```
-5. `offset`: skip query result to certain number,
+6. `offset`: skip query result to certain number,
     value example:
     ```json
     10
     ```
-6. `populate`: populates any foreign constraint relations with the values in the foreign table, you must define relations using Bookshelf on your own, like the `photo` function of `User` model in examples above. The value of a population could also be an JSON object that contains nested query statements.
+7. `as`: alias for a subquery.
+    value example:
+    ```json
+    "user_id"
+    ```
+8. `populate`: populates any foreign constraint relations with the values in the foreign table, you must define relations using Bookshelf on your own, like the `photo` function of `User` model in examples above. The value of a population could also be an JSON object that contains nested query statements.
     value example:
     ```json
     ["photo"]
@@ -528,7 +561,7 @@ Available top level keys are:
     }]
     ```
 
-7. joins: lots of joining operations are supported, available keywords including:
+9. joins: lots of joining operations are supported, available keywords including:
     `join`, `inner_join`, `left_join`, `left_outer_join`, `right_join`, `right_outer_join`, `full_outer_join`, `cross_join`.
     value example of a `join`:
     ```json
@@ -558,13 +591,30 @@ Available top level keys are:
     ```
     Above example assumes that every Photo has one or no user as the uploader, and the query could have `select: ["upload_count"]` to get values that how many photos each user uploads.
 
-8. `group_by`: group by a column, need to be used along with aggregation methods.
+
+10. `union`: Union a subquery.
+    value example:
+    ```json
+    {
+        "select": ["*"]
+        "from": "user"
+    }
+    ```
+11. `union_all`: An UNION ALL operation on a subquery.
+    value example:
+    ```json
+    {
+        "select": ["*"]
+        "from": "user"
+    }
+    ```
+12. `group_by`: group by a column, need to be used along with aggregation methods.
     value example:
     ```json
     "photo_id"
     ```
 
-9. `count`: count on a column.
+13. `count`: count on a column.
     value example:
     ```json
     "id"
@@ -575,29 +625,29 @@ Available top level keys are:
     ["id", "gender"]
     ```
 
-10. `min`: get minimum value on a column.
+14. `min`: get minimum value on a column.
     value example:
     ```json
     "badge"
     ```
 
-11. `max`: get maximum value on a column.
+15. `max`: get maximum value on a column.
     value example:
     ```json
     "badge"
     ```
 
-12. `avg`: get average value on a column.
+16. `avg`: get average value on a column.
     value example:
     ```json
     "badge"
     ```
 
-13. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
+17. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
 
-14. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
+18. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
 
-15. `and`: an AND operation, this special keyword allows recursive conditions parsing, all conditions inside an `and` JSON object are ANDed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
+19. `and`: an AND operation, this special keyword allows recursive conditions parsing, all conditions inside an `and` JSON object are ANDed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
     value example:
     ```json
     {"username": "hello", "id__in": [1,2,3]}
@@ -610,7 +660,7 @@ Available top level keys are:
     ```
 
 
-16. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ORed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
+20. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ORed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
     value example:
     ```json
     {"username": "hello", "id__in": [1,2,3]}
@@ -622,9 +672,9 @@ Available top level keys are:
     [{"username": "hello"}, {"id__in": [1,2,3]}]
     ```
 
-17. `add_attr`: for custom attributes that need to do more database queries or any asynchronous operations, the `add_attr` keyword provides the capability to define custom functions that return promises on model prototypes, then APIs will resolve these functions and set the result as a same-named attribute on returned data. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
+21. `add_attr`: for custom attributes that need to do more database queries or any asynchronous operations, the `add_attr` keyword provides the capability to define custom functions that return promises on model prototypes, then APIs will resolve these functions and set the result as a same-named attribute on returned data. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
 
-18. `add_clause`: for adding extra database query clause that is pre-defined by backend, which might lower down front-ends' burden or adds ability that is forbidden for front-ends to do. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
+22. `add_clause`: for adding extra database query clause that is pre-defined by backend, which might lower down front-ends' burden or adds ability that is forbidden for front-ends to do. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
 
 
 ### Where Conditions Suffixes
@@ -833,6 +883,74 @@ For one-to-many and many-to-many relations, including `hasMany`, `belongsTo`, `m
     "select": ["user.id as user_id", "user.username", "photo.url as photo_url"],
     "limit": 10,
     "offset": 1,
-    "order_by": ["user.id", "desc"]
+    "order_by": [[
+        "user.id", "desc"
+    ], [
+        "user.created_at", "desc"
+    ]]
 }
 ```
+
+### Use J2S Internal Methods
+
+From version 2.0.2, you could use some J2S internal methods to do CRUD on resources.
+These methods are used by J2S to parse the queries and handle resource CRUD, and by exposing them,
+developers have more control over customization if you want to do some manipulation on the query
+that front-end sends in. Currently, following methods are available on a J2S instance:
+
+- `getOpts`: Get the options that j2s uses when handling a resource CRUD. The parameter should be the path corresponds to the resource you are going to manipulate.
+
+    example:
+    ```javascript
+    let opts = j2s.getOpts('/users');
+    ```
+- `getOptsWithModel`: Get the options that j2s uses when handling a resource CRUD. The parameter should be the Bookshelf Model that corresponds to the resource you are going to manipulate
+
+    example:
+    ```javascript
+    let opts = j2s.getOptsWithModel(User);
+    ```    
+- `getInstances`: Get instances from database. The parameters should includes an Koa context instance, the query to be passed in, and options resolved by using `getOpts` or `getOptsWithModel`.
+
+    example:
+    ```javascript
+    controller.get('/users_with_pagination', async (ctx, next) => {
+        let template = {select: ["user.id", "user.username"]};
+        let query = ctx.request.query.query;
+        query = JSON.parse(query);
+        let {
+            limit,
+            offset,
+        } = query;
+        let mergedQuery = merge(template, {
+            limit,
+            offset
+        })
+        let opts = j2s.getOptsWithModel(User);
+        let instances = await j2s.getInstances(ctx, mergedQuery, opts);
+        ctx.body = {data: instances}
+    })
+    ```
+- `createInstances`: Create instances.
+
+    example:
+    ```javascript
+    controller.post('/create_user', async (ctx, next) => {
+        let data = ctx.request.body.data;
+        let opts = j2s.getOptsWithModel(User);
+        let instances = await j2s.createInstances(ctx, data, opts);
+        ctx.body = {data: instances}
+    })
+    ```
+- `updateInstances`: Update instances.
+
+    example:
+    ```javascript
+    controller.put('/update_user', async (ctx, next) => {
+        let query = ctx.request.body.query
+        let data = ctx.request.body.data;
+        let opts = j2s.getOptsWithModel(User);
+        let res = await j2s.updateInstances(ctx, query, data, opts);
+        ctx.body = {data: res}
+    })
+    ```
