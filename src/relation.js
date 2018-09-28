@@ -4,6 +4,7 @@ import isPlainObject from 'lodash/isPlainObject';
 import isArray from 'lodash/isArray';
 import isNumber from 'lodash/isNumber';
 import pickBy from 'lodash/pickBy';
+import every from 'lodash/every';
 import has from 'lodash/has';
 import map from 'lodash/map';
 import * as errors from './errors';
@@ -302,12 +303,17 @@ export async function modifyRelation(ctx, bookshelf, instance, model, relationNa
             await relationInstances.invokeThen('destroy', {
                 transacting: transacting
             })
-            let relationPayload = map(payload.replace, function(id) {
-                return {
-                    [relatedData.otherKey]: id,
-                    [relatedData.foreignKey]: instance.get(relatedData.parentIdAttribute)
-                }
-            })
+            let relationPayload = null;
+            if (every(payload.replace, isPlainObject)) {
+                relationPayload = payload.replace
+            } else {
+                relationPayload = map(payload.replace, function(id) {
+                    return {
+                        [relatedData.otherKey]: id,
+                        [relatedData.foreignKey]: instance.get(relatedData.parentIdAttribute)
+                    }
+                })
+            }
             relationInstances = await Promise.map(relationPayload, function(payload) {
                 return joinModel.forge(payload).save(null, {
                     transacting: transacting,
