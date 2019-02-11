@@ -339,6 +339,22 @@ const keywords = {
     'offset': (knex, builder, value, key) => {
         return builder.offset(value);
     },
+    'with': (knex, builder, value, key) => {
+        if (!isArray(value)) {
+            value = [value];
+        }
+        each(value, elem => {
+            each(elem, (clause, key) => {
+                if (isPlainObject(clause)) {
+                    return builder.with(key, function() {
+                        builderQuery(knex, this, clause);
+                    })
+                }
+                return builder.with(key, clause);
+            })
+        })
+        return builder;
+    },
     'as': (knex, builder, value, key) => {
         return builder.as(value);
     },

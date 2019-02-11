@@ -546,7 +546,20 @@ Available top level keys are:
     ```json
     "user_id"
     ```
-8. `populate`: populates any foreign constraint relations with the values in the foreign table, you must define relations using Bookshelf on your own, like the `photo` function of `User` model in examples above. The value of a population could also be an JSON object that contains nested query statements.
+8. `with`: the `with` statement. The key will be the alias.
+    value example:
+    ```json
+    {
+        "jay_books": {
+            "select": ["*"]
+            "from": "book",
+            "where": {
+                "author": "jay"
+            }
+        }
+    }
+    ```
+9. `populate`: populates any foreign constraint relations with the values in the foreign table, you must define relations using Bookshelf on your own, like the `photo` function of `User` model in examples above. The value of a population could also be an JSON object that contains nested query statements.
     value example:
     ```json
     ["photo"]
@@ -561,7 +574,7 @@ Available top level keys are:
     }]
     ```
 
-9. joins: lots of joining operations are supported, available keywords including:
+10. joins: lots of joining operations are supported, available keywords including:
     `join`, `inner_join`, `left_join`, `left_outer_join`, `right_join`, `right_outer_join`, `full_outer_join`, `cross_join`.
     value example of a `join`:
     ```json
@@ -592,7 +605,7 @@ Available top level keys are:
     Above example assumes that every Photo has one or no user as the uploader, and the query could have `select: ["upload_count"]` to get values that how many photos each user uploads.
 
 
-10. `union`: Union a subquery.
+11. `union`: Union a subquery.
     value example:
     ```json
     {
@@ -600,7 +613,7 @@ Available top level keys are:
         "from": "user"
     }
     ```
-11. `union_all`: An UNION ALL operation on a subquery.
+12. `union_all`: An UNION ALL operation on a subquery.
     value example:
     ```json
     {
@@ -608,13 +621,13 @@ Available top level keys are:
         "from": "user"
     }
     ```
-12. `group_by`: group by a column, need to be used along with aggregation methods.
+13. `group_by`: group by a column, need to be used along with aggregation methods.
     value example:
     ```json
     "photo_id"
     ```
 
-13. `count`: count on a column.
+14. `count`: count on a column.
     value example:
     ```json
     "id"
@@ -625,29 +638,29 @@ Available top level keys are:
     ["id", "gender"]
     ```
 
-14. `min`: get minimum value on a column.
+15. `min`: get minimum value on a column.
     value example:
     ```json
     "badge"
     ```
 
-15. `max`: get maximum value on a column.
+16. `max`: get maximum value on a column.
     value example:
     ```json
     "badge"
     ```
 
-16. `avg`: get average value on a column.
+17. `avg`: get average value on a column.
     value example:
     ```json
     "badge"
     ```
 
-17. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
+18. `exists`: an EXISTS subquery, see [Advanced Examples](#advanced-examples)
 
-18. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
+19. `not exists`: an NOT EXISTS subquery, see [Advanced Examples](#advanced-examples)
 
-19. `and`: an AND operation, this special keyword allows recursive conditions parsing, all conditions inside an `and` JSON object are ANDed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
+20. `and`: an AND operation, this special keyword allows recursive conditions parsing, all conditions inside an `and` JSON object are ANDed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
     value example:
     ```json
     {"username": "hello", "id__in": [1,2,3]}
@@ -660,7 +673,7 @@ Available top level keys are:
     ```
 
 
-20. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ORed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
+21. `or`: an OR operation, this special keyword allows recursive conditions parsing, all conditions inside an `or` JSON object are ORed together. The conditions is recursively parsed as how j2s handles the `where` keyword.
     value example:
     ```json
     {"username": "hello", "id__in": [1,2,3]}
@@ -672,9 +685,9 @@ Available top level keys are:
     [{"username": "hello"}, {"id__in": [1,2,3]}]
     ```
 
-21. `add_attr`: for custom attributes that need to do more database queries or any asynchronous operations, the `add_attr` keyword provides the capability to define custom functions that return promises on model prototypes, then APIs will resolve these functions and set the result as a same-named attribute on returned data. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
+22. `add_attr`: for custom attributes that need to do more database queries or any asynchronous operations, the `add_attr` keyword provides the capability to define custom functions that return promises on model prototypes, then APIs will resolve these functions and set the result as a same-named attribute on returned data. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
 
-22. `add_clause`: for adding extra database query clause that is pre-defined by backend, which might lower down front-ends' burden or adds ability that is forbidden for front-ends to do. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
+23. `add_clause`: for adding extra database query clause that is pre-defined by backend, which might lower down front-ends' burden or adds ability that is forbidden for front-ends to do. See [Extra Attributes and Extra Clauses on query](#extra-attributes-and-extra-clauses-on-query)
 
 
 ### Where Conditions Suffixes
