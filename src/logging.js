@@ -1,29 +1,21 @@
 import winston from 'winston';
 
-const logger = new(winston.Logger)({
+const config = {
     levels: {
-        trace: 0,
-        input: 1,
-        verbose: 2,
-        prompt: 3,
+        error: 0,
+        warn: 1,
+        info: 2,
+        verbose: 3,
         debug: 4,
-        info: 5,
-        data: 6,
-        help: 7,
-        warn: 8,
-        error: 9
+        silly: 5
     },
     colors: {
-        trace: 'magenta',
-        input: 'grey',
-        verbose: 'cyan',
-        prompt: 'grey',
-        debug: 'blue',
-        info: 'green',
-        data: 'grey',
-        help: 'cyan',
+        error: 'red',
         warn: 'yellow',
-        error: 'red'
+        info: 'green',
+        verbose: 'cyan',
+        debug: 'blue',
+        silly: 'magenta',
     },
     transports: [
         new(winston.transports.Console)({
@@ -31,6 +23,11 @@ const logger = new(winston.Logger)({
             'colorize': true
         })
     ],
-});
+}
 
-module.exports = logger;
+const logger = new(winston.Logger)(config);
+
+module.exports = {
+    config,
+    logger
+};

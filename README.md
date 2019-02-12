@@ -198,6 +198,7 @@ const J2S = require('j2s')
 // J2S default configurations for all routes
 const options = {
     prefix: '/api',                 // optional
+    log: 'debug',                   // optional
     routes: require('./routes'),    // necessary
     bookshelf: orm.bookshelf        // necessary
     access: {
@@ -243,6 +244,20 @@ const app = new Koa();
 app.use(controller.routes());
 app.use(controller.allowedMethods());
 ```
+
+>> NOTE: log levels follows the npm log levels as following:
+```
+{
+  error: 0,
+  warn: 1,
+  info: 2,
+  verbose: 3,
+  debug: 4,
+  silly: 5
+}
+```
+Now only the `verbose` level will print out SQL query statements
+and `debug` level will print out more low level ones.
 
 ### Access control
 

@@ -17,10 +17,12 @@ import omit from 'lodash/omit';
 import pick from 'lodash/pick';
 import find from 'lodash/find';
 import keys from 'lodash/keys';
+import merge from 'lodash/merge';
 import { default as lodashKeys } from 'lodash/keys';
 import map from 'lodash/map';
 import Router from 'koa-router';
 import Promise from 'bluebird';
+import { logger, config as logConfig } from './logging';
 import * as core from './core';
 import * as errors from './errors';
 import { getRelationNames, modifyRelation } from './relation';
@@ -122,6 +124,11 @@ class J2S {
         this.routes = defaultOpts.routes;
         this.bookshelf = defaultOpts.bookshelf;
         this.forbids = defaultOpts.forbids || [];
+        if (defaultOpts.log) {
+            logger.configure(merge(logConfig, {
+                level: defaultOpts.log
+            }))
+        }
         this.controller = new Router({
             prefix: this.prefix
         });

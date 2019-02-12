@@ -12,7 +12,7 @@ import has from 'lodash/has';
 import each from 'lodash/each';
 import every from 'lodash/every';
 import map from 'lodash/map';
-import logger from './logging';
+import { logger } from './logging';
 import errors from './errors';
 
 // Constants to denote access control rules
@@ -424,7 +424,7 @@ function builderQuery(knex, builder, clauses) {
         }
         builder = keywords[key](knex, builder, value, key)
     })
-    // logger.debug(`builder query statement: ${builder.toString()}`)
+    logger.debug(`builder query statement: ${builder.toString()}`);
     return builder
 }
 
@@ -436,7 +436,7 @@ function query(bookshelf, model, clauses) {
     })
     let m = collection.query(function(builder) {
         builder = builderQuery(bookshelf.knex, builder, clauses)
-        // logger.debug(`query statement: ${builder.toString()}`)
+        logger.verbose(`query statement: ${builder.toString()}`);
     })
     return m
 }
