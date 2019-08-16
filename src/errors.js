@@ -63,9 +63,6 @@ module.exports = {
         return new J2SError(100130, `clause should have exactly one key, but got [${keys}]`);
     },
     ErrWhereKeywordWhenGetWithIdForbidden: new J2SError(100131, `the 'where' keyword is not allowed when get objects with id`),
-    FnErrValueShouldBeNumberOrObject: function(key) {
-        return new J2SError(100131, `the value of key '${key}' should be number or object`);
-    },
     FnErrValueShouldBeObject: function(key) {
         return new J2SError(100132, `the value of key '${key}' should be object`);
     },
@@ -77,4 +74,9 @@ module.exports = {
         return new J2SError(100135, `relation type '${type}' is not implemented`);
     },
     ErrNoQueryOrWhereSupplied: new J2SError(100136, `no 'query' or 'where' supplied in body when updating data`),
+    ErrWhereKeywordWhenPutWithIdForbidden: new J2SError(100137, `the 'where' keyword is not allowed when put objects with id`),
+    ErrWhereKeywordWhenDeleteWithIdForbidden: new J2SError(100138, `the 'where' keyword is not allowed when delete objects with id`),
+    FnErrValueShouldBeNumberOrObject: function(key) {
+        return new J2SError(100139, `the value of key '${key}' should be number or object`);
+    },
 }

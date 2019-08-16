@@ -222,6 +222,26 @@ class J2S {
             ctx.body = {data: instances};
         };
 
+        let putOne = async function (ctx, next) {
+            let query = {}
+            if (ctx.request.body.query) {
+                query = JSON.parse(ctx.request.body.query)
+            }
+            if (!isPlainObject(query)) {
+                throw errors.ErrQueryShouldBeJsonObject;
+            }
+            if (has(query, 'where')) {
+                throw errors.ErrWhereKeywordWhenPutWithIdForbidden;
+            }
+            let data = ctx.request.body.data
+            if (!isPlainObject(data)) {
+                throw errors.ErrDataShouldBeJsonObject;
+            }
+            query.where = {id: ctx.params.id};
+            let res = await j2s.updateInstances(ctx, query, data, opts);
+            ctx.body = {data: res}
+        };
+
         let put = async function (ctx, next) {
             let query = ctx.request.body.query
             if (!isPlainObject(query)) {
@@ -233,6 +253,30 @@ class J2S {
             }
             let res = await j2s.updateInstances(ctx, query, data, opts);
             ctx.body = {data: res}
+        };
+
+        let delOne = async function (ctx, next) {
+            let query = {}
+            if (ctx.request.body.query) {
+                query = JSON.parse(ctx.request.body.query)
+            }
+            if (!isPlainObject(query)) {
+                throw errors.ErrQueryShouldBeJsonObject;
+            }
+            if (has(query, 'where')) {
+                throw errors.ErrWhereKeywordWhenDeleteWithIdForbidden;
+            }
+            query.where = {id: ctx.params.id};
+            let instances = await core.query(j2s.bookshelf, opts.model, query).fetch();
+            let check = await core.check(ctx, opts.identity.D, opts.admin.D, instances, opts.access.D);
+            if (!check) {
+                throw errors.ErrOperationNotAuthorized;
+            }
+            let res = await instances.invokeThen('destroy');
+            if (res.length == 0) {
+                throw errors.ErrResourceNotFound;
+            }
+            ctx.body = {success: true};
         };
 
         let del = async function (ctx, next) {
@@ -260,7 +304,9 @@ class J2S {
         this.controller.get.apply(this.controller, [path + '/:id'].concat(opts.middlewares.R).concat([getOne]));
         this.controller.get.apply(this.controller, [path].concat(opts.middlewares.R).concat([get]));
         this.controller.post.apply(this.controller, [path].concat(opts.middlewares.C).concat([post]));
+        this.controller.put.apply(this.controller, [path + '/:id'].concat(opts.middlewares.U).concat([putOne]));
         this.controller.put.apply(this.controller, [path].concat(opts.middlewares.U).concat([put]));
+        this.controller.delete.apply(this.controller, [path + '/:id'].concat(opts.middlewares.D).concat([delOne]));
         this.controller.delete.apply(this.controller, [path].concat(opts.middlewares.D).concat([del]));
     }
 
