@@ -1,6 +1,6 @@
 {
     "name": "j2s",
-    "version": "2.0.6",
+    "version": "2.0.7",
     "description": "JSON to SQL, build RESTful API server on the fly, which accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable middlewares",
     "main": "index.js",
     "scripts": {
@@ -54,8 +54,8 @@
     },
     "dependencies": {
         "bluebird": "^3.4.6",
-        "bookshelf": "^0.10.1",
-        "knex": "^0.12.1",
+        "bookshelf": "^1.2.0",
+        "knex": "^0.21.1",
         "koa-router": "^7.0.1",
         "lodash": "^4.16.1",
         "winston": "^2.2.0"
