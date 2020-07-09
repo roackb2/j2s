@@ -55,7 +55,7 @@
     "dependencies": {
         "bluebird": "^3.4.6",
         "bookshelf": "^1.2.0",
-        "knex": "^0.21.1",
+        "knex": "^0.19.5",
         "koa-router": "^7.0.1",
         "lodash": "^4.16.1",
         "winston": "^2.2.0"
