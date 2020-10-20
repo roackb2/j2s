@@ -1,6 +1,6 @@
 {
     "name": "j2s",
-    "version": "2.0.9",
+    "version": "2.0.10",
     "description": "JSON to SQL, build RESTful API server on the fly, which accespts JSON describing SQL query statements, support (almost) full SQL functionality, with configurable access control & pluggable middlewares",
     "main": "index.js",
     "scripts": {
@@ -39,11 +39,14 @@
     },
     "homepage": "https://github.com/roackb2/j2s#readme",
     "babel": {
-        "presets": [],
+        "presets": [
+            "@babel/preset-env"
+        ],
         "plugins": []
     },
     "dependencies": {
         "@babel/core": "^7.12.3",
+        "@babel/preset-env": "^7.12.1",
         "bluebird": "^3.4.6",
         "bookshelf": "^1.2.0",
         "knex": "^0.21.1",
