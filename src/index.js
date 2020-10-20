@@ -1,6 +1,6 @@
 'use strict';
 
-require('babel-polyfill');
+require('@babel/polyfill');
 import isString from 'lodash/isString';
 import isPlainObject from 'lodash/isPlainObject';
 import isArray from 'lodash/isArray';
