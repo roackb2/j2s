@@ -566,7 +566,7 @@ Available top level keys are:
     ```json
     {
         "jay_books": {
-            "select": ["*"]
+            "select": ["*"],
             "from": "book",
             "where": {
                 "author": "jay"
