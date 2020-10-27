@@ -624,7 +624,7 @@ Available top level keys are:
     value example:
     ```json
     {
-        "select": ["*"]
+        "select": ["*"],
         "from": "user"
     }
     ```
@@ -632,7 +632,7 @@ Available top level keys are:
     value example:
     ```json
     {
-        "select": ["*"]
+        "select": ["*"],
         "from": "user"
     }
     ```
